@@ -109,12 +109,12 @@ impl<'de> Deserialize<'de> for XsInteger {
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
-pub struct SingleRFC7233RangeType {
+pub struct SingleRFC7233Range {
     pub start: Option<u64>,
     pub end: Option<u64>,
 }
 
-impl From<(Option<u64>, Option<u64>)> for SingleRFC7233RangeType {
+impl From<(Option<u64>, Option<u64>)> for SingleRFC7233Range {
     fn from(value: (Option<u64>, Option<u64>)) -> Self {
         Self {
             start: value.0,
@@ -123,7 +123,7 @@ impl From<(Option<u64>, Option<u64>)> for SingleRFC7233RangeType {
     }
 }
 
-impl Serialize for SingleRFC7233RangeType {
+impl Serialize for SingleRFC7233Range {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -139,8 +139,8 @@ impl Serialize for SingleRFC7233RangeType {
     }
 }
 
-impl<'de> Deserialize<'de> for SingleRFC7233RangeType {
-    fn deserialize<D>(deserializer: D) -> Result<SingleRFC7233RangeType, D::Error>
+impl<'de> Deserialize<'de> for SingleRFC7233Range {
+    fn deserialize<D>(deserializer: D) -> Result<SingleRFC7233Range, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -161,10 +161,10 @@ impl<'de> Deserialize<'de> for SingleRFC7233RangeType {
                     m.as_str().parse::<u64>().ok()
                 }
             });
-            Ok(SingleRFC7233RangeType { start, end })
+            Ok(SingleRFC7233Range { start, end })
         } else {
             Err(serde::de::Error::custom(
-                "Invalid format for SingleRFC7233RangeType",
+                "Invalid format for SingleRFC7233Range",
             ))
         }
     }
@@ -182,12 +182,11 @@ impl Deref for XsAnyUri {
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename = "URLType")]
 pub struct Url {
     #[serde(rename = "@sourceURL", skip_serializing_if = "Option::is_none")]
     pub source_url: Option<XsAnyUri>,
     #[serde(rename = "@range", skip_serializing_if = "Option::is_none")]
-    pub range: Option<SingleRFC7233RangeType>,
+    pub range: Option<SingleRFC7233Range>,
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -206,6 +205,19 @@ pub struct FailoverContent {
     pub valid: Option<bool>,
     #[serde(rename = "FCS", skip_serializing_if = "Vec::is_empty")]
     pub fcs_list: Vec<Fcs>,
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename = "SegmentURL")]
+pub struct SegmentUrl {
+    #[serde(rename = "@media")]
+    media: Option<XsAnyUri>,
+    #[serde(rename = "@mediaRange")]
+    media_range: Option<SingleRFC7233Range>,
+    #[serde(rename = "@index")]
+    index: Option<XsAnyUri>,
+    #[serde(rename = "@indexRange")]
+    index_range: Option<SingleRFC7233Range>,
 }
 
 #[cfg(test)]
@@ -245,11 +257,11 @@ mod tests {
     #[test]
     fn test_types_single_range_type_serde_full() {
         let plain = "100-200";
-        let result = serde_plain::from_str::<SingleRFC7233RangeType>(&plain).unwrap();
+        let result = serde_plain::from_str::<SingleRFC7233Range>(&plain).unwrap();
 
         assert_eq!(
             result,
-            SingleRFC7233RangeType {
+            SingleRFC7233Range {
                 start: Some(100),
                 end: Some(200)
             }
@@ -263,11 +275,11 @@ mod tests {
     #[test]
     fn test_types_single_range_type_serde_start_only() {
         let plain = "100-";
-        let result = serde_plain::from_str::<SingleRFC7233RangeType>(&plain).unwrap();
+        let result = serde_plain::from_str::<SingleRFC7233Range>(&plain).unwrap();
 
         assert_eq!(
             result,
-            SingleRFC7233RangeType {
+            SingleRFC7233Range {
                 start: Some(100),
                 end: None
             }
@@ -281,11 +293,11 @@ mod tests {
     #[test]
     fn test_types_single_range_type_serde_end_only() {
         let plain = "-200";
-        let result = serde_plain::from_str::<SingleRFC7233RangeType>(&plain).unwrap();
+        let result = serde_plain::from_str::<SingleRFC7233Range>(&plain).unwrap();
 
         assert_eq!(
             result,
-            SingleRFC7233RangeType {
+            SingleRFC7233Range {
                 start: None,
                 end: Some(200)
             }
@@ -299,11 +311,11 @@ mod tests {
     #[test]
     fn test_types_single_range_type_serde_empty() {
         let plain = "";
-        let result = serde_plain::from_str::<SingleRFC7233RangeType>(&plain).unwrap();
+        let result = serde_plain::from_str::<SingleRFC7233Range>(&plain).unwrap();
 
         assert_eq!(
             result,
-            SingleRFC7233RangeType {
+            SingleRFC7233Range {
                 start: None,
                 end: None
             }
@@ -317,14 +329,14 @@ mod tests {
     #[test]
     fn test_types_single_range_type_invalid_format() {
         let plain = "abc-xyz";
-        let result = serde_plain::from_str::<SingleRFC7233RangeType>(&plain);
+        let result = serde_plain::from_str::<SingleRFC7233Range>(&plain);
 
         assert!(result.is_err());
     }
 
     #[test]
     fn test_types_url_type_serde() {
-        let xml = r#"<URLType sourceURL="http://example.com/video.mp4" range="100-200"/>"#;
+        let xml = r#"<Url sourceURL="http://example.com/video.mp4" range="100-200"/>"#;
 
         let ret = quick_xml::de::from_str::<Url>(&xml).unwrap();
 
@@ -332,7 +344,7 @@ mod tests {
             ret,
             Url {
                 source_url: Some(XsAnyUri("http://example.com/video.mp4".to_string())),
-                range: Some(SingleRFC7233RangeType {
+                range: Some(SingleRFC7233Range {
                     start: Some(100),
                     end: Some(200)
                 })
@@ -348,10 +360,10 @@ mod tests {
 
     #[test]
     fn test_types_failover_content_type_serde() {
-        let xml = r#"<FailoverContentType valid="true">
+        let xml = r#"<FailoverContent valid="true">
   <FCS t="1625152800" d="3600"/>
   <FCS t="1625156400"/>
-</FailoverContentType>"#;
+</FailoverContent>"#;
 
         let ret = quick_xml::de::from_str::<FailoverContent>(&xml).unwrap();
 

@@ -2,7 +2,7 @@ use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
-use crate::types::{FailoverContent, SingleRFC7233RangeType, Url, XsDuration, XsInteger};
+use crate::types::{FailoverContent, SegmentUrl, SingleRFC7233Range, Url, XsDuration, XsInteger};
 
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
@@ -20,7 +20,7 @@ pub struct SegmentBaseInformation {
     #[serde(rename = "@timeShiftBufferDepth")]
     time_shift_buffer_depth: Option<XsDuration>,
     #[serde(rename = "@indexRange")]
-    index_range: Option<SingleRFC7233RangeType>,
+    index_range: Option<SingleRFC7233Range>,
     #[serde(rename = "@indexRangeExact")]
     index_range_exact: Option<bool>,
     #[serde(rename = "@availabilityTimeOffset")]
@@ -36,8 +36,7 @@ pub struct SegmentBaseInformation {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 pub struct MultipleSegmentBaseInformation {
     #[serde(rename = "@duration")]
     duration: Option<u32>,
@@ -58,6 +57,19 @@ pub struct MultipleSegmentBaseInformation {
 pub struct SegmentBase {
     #[serde(flatten)]
     segment_base_information: SegmentBaseInformation,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
+#[builder(setter(into, strip_option), default)]
+pub struct SegmentList {
+    #[serde(rename = "@xlink:href")]
+    href: Option<String>,
+    #[serde(rename = "@xlink:actuate")]
+    actuate: Option<String>,
+    multiple_segment_base_information: MultipleSegmentBaseInformation,
+    #[serde(rename = "SegmentURL", skip_serializing_if = "Vec::is_empty")]
+    segment_url: Vec<SegmentUrl>,
 }
 
 /// Attribute name is `SegmentTimeline`
