@@ -189,6 +189,15 @@ pub struct Url {
     pub range: Option<SingleRFC7233Range>,
 }
 
+impl From<(Option<String>, (Option<u64>, Option<u64>))> for Url {
+    fn from(value: (Option<String>, (Option<u64>, Option<u64>))) -> Self {
+        Self {
+            source_url: value.0.and_then(|s| Some(XsAnyUri(s))),
+            range: Some(SingleRFC7233Range::from(value.1)),
+        }
+    }
+}
+
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename = "FCS")]
 pub struct Fcs {
