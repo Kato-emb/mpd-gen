@@ -7,7 +7,7 @@ edition = "2021"
 thiserror = { version = "1.0.64" }
 
 num = { version = "0.4.3", features = ["serde"] }
-iso8601 = { version = "0.6.1" }
+iso8601 = { version = "0.6.1", features = ["serde"] }
 
 regex = { version = "1.11.0" }
 

@@ -2,7 +2,7 @@ use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
-use crate::types::ListOfFourCC;
+use crate::types::{AspectRatio, FrameRate, ListOfFourCC, ListOfProfiles, UIntVector};
 use crate::{
     scheme::Profile,
     types::{StringNoWhitespace, StringVector},
@@ -26,10 +26,19 @@ pub struct Representation {
     association_type: Option<ListOfFourCC>,
     #[serde(rename = "@mediaStreamStructureId")]
     media_stream_structure_id: Option<StringVector>,
-    // #[serde(rename = "@profiles")]
-    // profiles: Vec<Profile>,
+    #[serde(rename = "@profiles")]
+    profiles: Option<ListOfProfiles>,
+    #[serde(rename = "@width")]
     width: Option<u32>,
+    #[serde(rename = "@height")]
     height: Option<u32>,
+    #[serde(rename = "@sar")]
+    sar: Option<AspectRatio>,
+    #[serde(rename = "@frameRate")]
+    framerate: Option<FrameRate>,
+    #[serde(rename = "@audioSamplingRate")]
+    audio_sampling_rate: Option<UIntVector>,
+    mime_type: Option,
 }
 
 #[cfg(test)]
@@ -43,8 +52,8 @@ mod tests {
         let repr = RepresentationBuilder::default()
             .id(StringNoWhitespace::from_str("aaaaaa").unwrap())
             .bandwidth(2_000_000u32)
-            .dependency_id(vec!["a".to_string(), "b".to_string()])
-            .association_type(vec![0x54534554, 0x4D4A5047])
+            .dependency_id(["a".to_string(), "b".to_string()].as_slice())
+            .association_type([0x54534554, 0x4D4A5047].as_slice())
             .build()
             .unwrap();
 

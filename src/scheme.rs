@@ -1,5 +1,6 @@
 use std::fmt;
 
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::{error::MpdError, Result};
@@ -19,32 +20,34 @@ pub enum Profile {
     IsoBroadcast,
     Cmaf,
     CmafExt,
-    GppDash10,
-    HbbTV20Dash,
-    HbbTV15Dash,
+    Other(String),
 }
 
 impl std::str::FromStr for Profile {
     type Err = MpdError;
 
     fn from_str(s: &str) -> Result<Self> {
-        match s {
-            "urn:mpeg:dash:profile:full:2011" => Ok(Profile::Full),
-            "urn:mpeg:dash:profile:isoff-on-demand:2011" => Ok(Profile::IsoOnDemand),
-            "urn:mpeg:dash:profile:isoff-live:2011" => Ok(Profile::IsoLive),
-            "urn:mpeg:dash:profile:isoff-main:2011" => Ok(Profile::IsoMain),
-            "urn:mpeg:dash:profile:mp2t-main:2011" => Ok(Profile::Mp2tMain),
-            "urn:mpeg:dash:profile:mp2t-simple:2011" => Ok(Profile::Mp2tSimple),
-            "urn:mpeg:dash:profile:isoff-ext-live:2014" => Ok(Profile::IsoExtLive),
-            "urn:mpeg:dash:profile:isoff-ext-on-demand:2014" => Ok(Profile::IsoExtOnDemand),
-            "urn:mpeg:dash:profile:isoff-common:2014" => Ok(Profile::IsoCommon),
-            "urn:mpeg:dash:profile:isoff-broadcast:2015" => Ok(Profile::IsoBroadcast),
-            "urn:mpeg:dash:profile:cmaf:2019" => Ok(Profile::Cmaf),
-            "urn:mpeg:dash:profile:cmaf-extended:2019" => Ok(Profile::CmafExt),
-            "urn:3GPP:PSS:profile:DASH10" => Ok(Profile::GppDash10),
-            "urn:dvb:dash:profile:dvb-dash:2014" => Ok(Profile::HbbTV20Dash),
-            "urn:hbbtv:dash:profile:isoff-live:2012" => Ok(Profile::HbbTV15Dash),
-            _other => Err(MpdError::InvalidData("Unsupported profile uri.")),
+        let urn_re = Regex::new(r"^urn:[a-zA-Z0-9\-]+(:[a-zA-Z0-9\-]+)*$").unwrap();
+        let url_re = Regex::new(r"^https?://[a-zA-Z0-9\-._~:/?#\[@\]!$&'()*+,;=]+$").unwrap();
+
+        if urn_re.is_match(s) || url_re.is_match(s) {
+            Ok(match s {
+                "urn:mpeg:dash:profile:full:2011" => Profile::Full,
+                "urn:mpeg:dash:profile:isoff-on-demand:2011" => Profile::IsoOnDemand,
+                "urn:mpeg:dash:profile:isoff-live:2011" => Profile::IsoLive,
+                "urn:mpeg:dash:profile:isoff-main:2011" => Profile::IsoMain,
+                "urn:mpeg:dash:profile:mp2t-main:2011" => Profile::Mp2tMain,
+                "urn:mpeg:dash:profile:mp2t-simple:2011" => Profile::Mp2tSimple,
+                "urn:mpeg:dash:profile:isoff-ext-live:2014" => Profile::IsoExtLive,
+                "urn:mpeg:dash:profile:isoff-ext-on-demand:2014" => Profile::IsoExtOnDemand,
+                "urn:mpeg:dash:profile:isoff-common:2014" => Profile::IsoCommon,
+                "urn:mpeg:dash:profile:isoff-broadcast:2015" => Profile::IsoBroadcast,
+                "urn:mpeg:dash:profile:cmaf:2019" => Profile::Cmaf,
+                "urn:mpeg:dash:profile:cmaf-extended:2019" => Profile::CmafExt,
+                other => Profile::Other(other.to_string()),
+            })
+        } else {
+            Err(MpdError::UnmatchedPattern)
         }
     }
 }
@@ -64,9 +67,7 @@ impl fmt::Display for Profile {
             Profile::IsoBroadcast => "urn:mpeg:dash:profile:isoff-broadcast:2015",
             Profile::Cmaf => "urn:mpeg:dash:profile:cmaf:2019",
             Profile::CmafExt => "urn:mpeg:dash:profile:cmaf-extended:2019",
-            Profile::GppDash10 => "urn:3GPP:PSS:profile:DASH10",
-            Profile::HbbTV20Dash => "urn:dvb:dash:profile:dvb-dash:2014",
-            Profile::HbbTV15Dash => "urn:hbbtv:dash:profile:isoff-live:2012",
+            Profile::Other(profile) => &profile,
         };
 
         write!(f, "{s}")

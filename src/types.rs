@@ -3,10 +3,10 @@ use std::{fmt, ops::Deref, result, str::FromStr};
 
 use num::{integer::gcd, BigInt};
 use regex::Regex;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
-use crate::{error::MpdError, Result};
+use crate::{error::MpdError, scheme::Profile, Result};
 
 #[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
 pub struct StringNoWhitespace {
@@ -106,6 +106,30 @@ pub struct WhitespaceSeparatedList<T: fmt::Display + FromStr> {
     value: Vec<T>,
 }
 
+impl<S, T> From<Vec<S>> for WhitespaceSeparatedList<T>
+where
+    S: Into<T>,
+    T: fmt::Display + FromStr,
+{
+    fn from(value: Vec<S>) -> Self {
+        Self {
+            value: value.into_iter().map(|item| item.into()).collect(),
+        }
+    }
+}
+
+impl<S, T> From<&[S]> for WhitespaceSeparatedList<T>
+where
+    S: Into<T> + Clone,
+    T: fmt::Display + FromStr,
+{
+    fn from(value: &[S]) -> Self {
+        Self {
+            value: value.into_iter().map(|item| item.clone().into()).collect(),
+        }
+    }
+}
+
 impl<T: fmt::Display + FromStr> fmt::Display for WhitespaceSeparatedList<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let joined = self
@@ -121,10 +145,12 @@ impl<T: fmt::Display + FromStr> fmt::Display for WhitespaceSeparatedList<T> {
 impl<T: fmt::Display + FromStr> FromStr for WhitespaceSeparatedList<T> {
     type Err = MpdError;
 
-    fn from_str(s: &str) -> result::Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self> {
         let items = s
             .split_whitespace()
-            .map(|item| T::from_str(item).map_err(|_| MpdError::UnmatchedPattern))
+            .map(|item| {
+                T::from_str(item).map_err(|_| MpdError::InvalidData("Failed to parse from str"))
+            })
             .collect::<Result<Vec<T>>>()?;
         Ok(Self { value: items })
     }
@@ -132,25 +158,35 @@ impl<T: fmt::Display + FromStr> FromStr for WhitespaceSeparatedList<T> {
 
 pub type UIntVector = WhitespaceSeparatedList<u32>;
 pub type StringVector = WhitespaceSeparatedList<String>;
-
-impl From<Vec<String>> for StringVector {
-    fn from(value: Vec<String>) -> Self {
-        Self { value }
-    }
-}
-
 pub type ListOfFourCC = WhitespaceSeparatedList<FourCC>;
 
-impl From<Vec<FourCC>> for ListOfFourCC {
-    fn from(value: Vec<FourCC>) -> Self {
-        Self { value }
+#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
+pub struct ListOfProfiles {
+    value: Vec<Profile>,
+}
+
+impl fmt::Display for ListOfProfiles {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let joined = self
+            .value
+            .iter()
+            .map(|item| item.to_string())
+            .collect::<Vec<String>>()
+            .join(",");
+        write!(f, "{joined}")
     }
 }
 
-impl From<Vec<u32>> for ListOfFourCC {
-    fn from(value: Vec<u32>) -> Self {
-        let value = value.into_iter().map(|val| FourCC::from(val)).collect();
-        Self { value }
+impl FromStr for ListOfProfiles {
+    type Err = MpdError;
+
+    fn from_str(s: &str) -> result::Result<Self, Self::Err> {
+        let items = s
+            .split(",")
+            .map(|item| Profile::from_str(item))
+            .collect::<Result<Vec<Profile>>>()?;
+
+        Ok(Self { value: items })
     }
 }
 
@@ -299,107 +335,60 @@ impl FromStr for StreamAccessPoint {
     }
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct XsDuration(iso8601::Duration);
+#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq)]
+pub struct XsDuration {
+    value: iso8601::Duration,
+}
 
-impl Deref for XsDuration {
-    type Target = iso8601::Duration;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl fmt::Display for XsDuration {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value.to_string())
     }
 }
 
-impl From<&[u8]> for XsDuration {
-    fn from(value: &[u8]) -> Self {
-        Self(
-            iso8601::parsers::parse_duration(value)
-                .and_then(|(_, duration)| Ok(duration))
-                .unwrap_or_default(),
-        )
-    }
-}
+impl FromStr for XsDuration {
+    type Err = MpdError;
 
-impl From<String> for XsDuration {
-    fn from(value: String) -> Self {
-        Self::from(value.as_bytes())
-    }
-}
-
-impl From<&str> for XsDuration {
-    fn from(value: &str) -> Self {
-        Self::from(value.as_bytes())
-    }
-}
-
-impl Serialize for XsDuration {
-    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(&self.0.to_string())
-    }
-}
-
-impl<'de> Deserialize<'de> for XsDuration {
-    fn deserialize<D>(deserializer: D) -> result::Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        let duration = s
+    fn from_str(s: &str) -> Result<Self> {
+        let value = s
             .parse::<iso8601::Duration>()
-            .map_err(serde::de::Error::custom)?;
-        Ok(XsDuration(duration))
+            .map_err(|_| MpdError::InvalidData("Failed to parse xs:duration"))?;
+
+        Ok(Self { value })
     }
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
-pub struct XsInteger(BigInt);
+#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
+pub struct XsInteger {
+    value: BigInt,
+}
 
-impl Deref for XsInteger {
-    type Target = BigInt;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl<T> From<T> for XsInteger
+where
+    T: Into<BigInt>,
+{
+    fn from(value: T) -> Self {
+        Self {
+            value: value.into(),
+        }
     }
 }
 
-impl From<BigInt> for XsInteger {
-    fn from(value: BigInt) -> Self {
-        Self(value)
+impl fmt::Display for XsInteger {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value.to_string())
     }
 }
 
-impl From<i32> for XsInteger {
-    fn from(value: i32) -> Self {
-        Self(value.into())
-    }
-}
+impl FromStr for XsInteger {
+    type Err = MpdError;
 
-impl From<i64> for XsInteger {
-    fn from(value: i64) -> Self {
-        Self(value.into())
-    }
-}
+    fn from_str(s: &str) -> result::Result<Self, Self::Err> {
+        let value = s
+            .parse::<BigInt>()
+            .map_err(|_| MpdError::InvalidData("Failed to parse xs:integer"))?;
 
-impl Serialize for XsInteger {
-    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(&self.0.to_string())
-    }
-}
-
-impl<'de> Deserialize<'de> for XsInteger {
-    fn deserialize<D>(deserializer: D) -> result::Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        let big_int = s.parse::<BigInt>().map_err(serde::de::Error::custom)?;
-        Ok(XsInteger(big_int))
+        Ok(Self { value })
     }
 }
 
@@ -530,11 +519,11 @@ mod tests {
     #[test]
     fn test_types_xs_duration_serde() {
         let value = "foo";
-        let xs_duration = XsDuration::from(value);
-        assert!(*xs_duration == iso8601::Duration::default());
+        let ret = XsDuration::from_str(value);
+        assert!(ret.is_err());
 
         let value = "PT3H11M53S";
-        let xs_duration = XsDuration::from(value);
+        let xs_duration = XsDuration::from_str(value).unwrap();
         let ser = serde_plain::to_string(&xs_duration).unwrap();
 
         assert!(&ser == value);
@@ -555,6 +544,32 @@ mod tests {
         let ser = ratio.to_string();
 
         assert_eq!(value, &ser);
+    }
+
+    #[test]
+    fn test_types_frame_rate() {
+        let value = "30";
+        let framerate = FrameRate::from_str(&value).unwrap();
+
+        assert_eq!(framerate.frame, 30);
+        assert_eq!(framerate.denom, None);
+
+        let ser = framerate.to_string();
+
+        assert_eq!(ser, "30/1".to_string());
+    }
+
+    #[test]
+    fn test_types_stream_access_point_serde() {
+        let ret = StreamAccessPoint::from_str("0");
+        assert!(ret.is_err());
+
+        let value = "1";
+        let sap = StreamAccessPoint::from_str(&value).unwrap();
+        assert_eq!(sap, StreamAccessPoint::Type1);
+
+        let ser = sap.to_string();
+        assert_eq!(value, ser.as_str());
     }
 
     #[test]
@@ -583,6 +598,25 @@ mod tests {
         let list = StringVector::from_str(&value).unwrap();
 
         assert_eq!(list.value, vec!["Hello", "World", "!"]);
+
+        let ser = list.to_string();
+
+        assert_eq!(value, ser.as_str());
+    }
+
+    #[test]
+    fn test_types_list_of_profiles_serde() {
+        let value = "urn:mpeg:dash:profile:isoff-live:2011,urn:mpeg:dash:profile:cmaf:2019,https://example.com/profile/test";
+        let list = ListOfProfiles::from_str(&value).unwrap();
+
+        assert_eq!(
+            list.value,
+            vec![
+                Profile::IsoLive,
+                Profile::Cmaf,
+                Profile::Other("https://example.com/profile/test".to_string())
+            ]
+        );
 
         let ser = list.to_string();
 

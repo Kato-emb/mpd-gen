@@ -178,6 +178,8 @@ pub struct Segment {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use super::*;
 
     #[test]
@@ -224,7 +226,7 @@ mod tests {
         let segment_base = SegmentBaseBuilder::default()
             .timescale(3000u32)
             .availability_time_offset(10.1)
-            .time_shift_buffer_depth("PT3H11M53S")
+            .time_shift_buffer_depth(XsDuration::from_str("PT3H11M53S").unwrap())
             .initialization((
                 Some("http://example.com/video.mp4".to_string()),
                 (Some(100), Some(200)),
