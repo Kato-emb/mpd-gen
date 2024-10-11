@@ -2,11 +2,26 @@ use core::str;
 use std::{fmt, ops::Deref, result, str::FromStr};
 
 use num::{integer::gcd, BigInt};
-use regex::Regex;
 use serde::{Deserialize, Serialize};
-use serde_with::{DeserializeFromStr, SerializeDisplay};
+use serde_with::{skip_serializing_none, DeserializeFromStr, SerializeDisplay};
 
-use crate::{error::MpdError, scheme::Profile, Result};
+use crate::{
+    entity::{
+        PATTERN_FANCY, PATTERN_FRAMERATE, PATTERN_ID, PATTERN_LANG, PATTERN_NO_WHITESPACE,
+        PATTERN_RFC7233_RANGE, PATTERN_SIMPLE,
+    },
+    error::MpdError,
+    scheme::Profile,
+    Result,
+};
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "camelCase")]
+pub enum XLinkActure {
+    OnLoad,
+    #[default]
+    OnRequest,
+}
 
 #[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
 pub struct StringNoWhitespace {
@@ -23,8 +38,7 @@ impl FromStr for StringNoWhitespace {
     type Err = MpdError;
 
     fn from_str(s: &str) -> result::Result<Self, Self::Err> {
-        let re = Regex::new(r"^[^\r\n\t \p{Z}]*$").unwrap();
-        if !re.is_match(s) {
+        if !PATTERN_NO_WHITESPACE.is_match(s) {
             return Err(MpdError::UnmatchedPattern);
         }
 
@@ -161,11 +175,35 @@ pub type StringVector = WhitespaceSeparatedList<String>;
 pub type ListOfFourCC = WhitespaceSeparatedList<FourCC>;
 
 #[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
-pub struct ListOfProfiles {
-    value: Vec<Profile>,
+pub struct CommaSeparatedList<T: fmt::Display + FromStr> {
+    value: Vec<T>,
 }
 
-impl fmt::Display for ListOfProfiles {
+impl<S, T> From<Vec<S>> for CommaSeparatedList<T>
+where
+    S: Into<T>,
+    T: fmt::Display + FromStr,
+{
+    fn from(value: Vec<S>) -> Self {
+        Self {
+            value: value.into_iter().map(|item| item.into()).collect(),
+        }
+    }
+}
+
+impl<S, T> From<&[S]> for CommaSeparatedList<T>
+where
+    S: Into<T> + Clone,
+    T: fmt::Display + FromStr,
+{
+    fn from(value: &[S]) -> Self {
+        Self {
+            value: value.into_iter().map(|item| item.clone().into()).collect(),
+        }
+    }
+}
+
+impl<T: fmt::Display + FromStr> fmt::Display for CommaSeparatedList<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let joined = self
             .value
@@ -177,20 +215,24 @@ impl fmt::Display for ListOfProfiles {
     }
 }
 
-impl FromStr for ListOfProfiles {
+impl<T: fmt::Display + FromStr> FromStr for CommaSeparatedList<T> {
     type Err = MpdError;
 
-    fn from_str(s: &str) -> result::Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self> {
         let items = s
             .split(",")
-            .map(|item| Profile::from_str(item))
-            .collect::<Result<Vec<Profile>>>()?;
+            .map(|item| {
+                T::from_str(item).map_err(|_| MpdError::InvalidData("Failed to parse from str"))
+            })
+            .collect::<Result<Vec<T>>>()?;
 
         Ok(Self { value: items })
     }
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub type ListOfProfiles = CommaSeparatedList<Profile>;
+
+#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
 pub struct AspectRatio {
     horizontal: u64,
     vertical: u64,
@@ -234,10 +276,30 @@ impl FromStr for AspectRatio {
     }
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
 pub struct FrameRate {
     frame: u64,
     denom: Option<u64>,
+}
+
+impl From<u64> for FrameRate {
+    fn from(value: u64) -> Self {
+        Self {
+            frame: value,
+            denom: None,
+        }
+    }
+}
+
+impl From<(u64, u64)> for FrameRate {
+    fn from(value: (u64, u64)) -> Self {
+        let denom = if value.1 == 0 { None } else { Some(value.1) };
+
+        Self {
+            frame: value.0,
+            denom,
+        }
+    }
 }
 
 impl fmt::Display for FrameRate {
@@ -250,8 +312,7 @@ impl FromStr for FrameRate {
     type Err = MpdError;
 
     fn from_str(s: &str) -> Result<Self> {
-        let re = Regex::new(r"^[0-9]+(/[1-9][0-9]*)?$").unwrap();
-        if !re.is_match(s) {
+        if !PATTERN_FRAMERATE.is_match(s) {
             return Err(MpdError::UnmatchedPattern);
         }
 
@@ -264,6 +325,76 @@ impl FromStr for FrameRate {
         };
 
         Ok(Self { frame, denom })
+    }
+}
+
+// 長さが１以上２以下である必要がある
+// 何かで制限をかける必要有
+pub type AudioSamplingRate = UIntVector;
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum VideoScan {
+    Progressive,
+    InterLaced,
+    #[default]
+    Unknown,
+}
+
+#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
+pub struct Codecs {
+    value: String,
+}
+
+impl fmt::Display for Codecs {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
+impl FromStr for Codecs {
+    type Err = MpdError;
+
+    fn from_str(s: &str) -> result::Result<Self, Self::Err> {
+        if PATTERN_FANCY.is_match(s) || PATTERN_SIMPLE.is_match(s) {
+            Ok(Codecs {
+                value: s.to_string(),
+            })
+        } else {
+            Err(MpdError::UnmatchedPattern)
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
+pub struct Tag {
+    value: String,
+}
+
+impl<S> From<S> for Tag
+where
+    S: AsRef<str>,
+{
+    fn from(value: S) -> Self {
+        Self {
+            value: value.as_ref().to_string(),
+        }
+    }
+}
+
+impl fmt::Display for Tag {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
+impl FromStr for Tag {
+    type Err = MpdError;
+
+    fn from_str(s: &str) -> result::Result<Self, Self::Err> {
+        Ok(Tag {
+            value: s.to_string(),
+        })
     }
 }
 
@@ -393,6 +524,56 @@ impl FromStr for XsInteger {
 }
 
 #[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
+pub struct XsId {
+    value: String,
+}
+
+impl fmt::Display for XsId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
+impl FromStr for XsId {
+    type Err = MpdError;
+
+    fn from_str(s: &str) -> result::Result<Self, Self::Err> {
+        if !PATTERN_ID.is_match(s) {
+            return Err(MpdError::UnmatchedPattern);
+        }
+
+        Ok(Self {
+            value: s.to_string(),
+        })
+    }
+}
+
+#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
+pub struct XsLanguage {
+    value: String,
+}
+
+impl fmt::Display for XsLanguage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
+impl FromStr for XsLanguage {
+    type Err = MpdError;
+
+    fn from_str(s: &str) -> result::Result<Self, Self::Err> {
+        if !PATTERN_LANG.is_match(s) {
+            return Err(MpdError::UnmatchedPattern);
+        }
+
+        Ok(Self {
+            value: s.to_string(),
+        })
+    }
+}
+
+#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
 pub struct SingleRFC7233Range {
     pub start: Option<u64>,
     pub end: Option<u64>,
@@ -425,9 +606,7 @@ impl FromStr for SingleRFC7233Range {
     type Err = MpdError;
 
     fn from_str(s: &str) -> Result<Self> {
-        let re = Regex::new(r"^([0-9]*)(-([0-9]*))?$").unwrap();
-
-        if let Some(caps) = re.captures(&s) {
+        if let Some(caps) = PATTERN_RFC7233_RANGE.captures(&s) {
             let start = caps.get(1).and_then(|m| {
                 if m.as_str().is_empty() {
                     None
@@ -451,11 +630,251 @@ impl FromStr for SingleRFC7233Range {
 
 type AnyUri = String;
 
+/// Table 32
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct Descriptor {
+    #[serde(rename = "@schemeIdUri")]
+    scheme_id_uri: AnyUri,
+    #[serde(rename = "@value", skip_serializing_if = "Option::is_none")]
+    value: Option<String>,
+    #[serde(rename = "@id", skip_serializing_if = "Option::is_none")]
+    id: Option<String>,
+}
+
+impl From<(String, (Option<String>, Option<String>))> for Descriptor {
+    fn from(value: (String, (Option<String>, Option<String>))) -> Self {
+        Self {
+            scheme_id_uri: value.0,
+            value: value.1 .0,
+            id: value.1 .1,
+        }
+    }
+}
+
+/// Table 33
+///
+/// refとref_idはどちらか一方しか存在できない
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct ContentProtection {
+    #[serde(flatten)]
+    descriptor: Descriptor,
+    #[serde(rename = "@ref")]
+    r#ref: Option<XsId>,
+    #[serde(rename = "@refId")]
+    ref_id: Option<XsId>,
+    #[serde(rename = "@robustness")]
+    robustness: Option<StringNoWhitespace>,
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum ContentEncoding {
+    #[default]
+    Base64,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct Event {
+    #[serde(rename = "@presentationTime")]
+    presentation_time: Option<u64>,
+    #[serde(rename = "@duration")]
+    duration: Option<u64>,
+    #[serde(rename = "@id")]
+    id: Option<u32>,
+    #[serde(rename = "@contentEncoding")]
+    content_encording: Option<ContentEncoding>,
+    #[serde(rename = "@messageData")]
+    message_data: Option<String>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct EventStream {
+    #[serde(rename = "@xlink:href")]
+    href: Option<String>,
+    #[serde(rename = "@xlink:actuate")]
+    actuate: Option<XLinkActure>,
+    #[serde(rename = "@schemeIdUri")]
+    scheme_id_uri: AnyUri,
+    #[serde(rename = "@value")]
+    value: Option<String>,
+    #[serde(rename = "@timescale")]
+    timescale: Option<u32>,
+    #[serde(rename = "@presentationTimeOffset")]
+    presentation_time_offset: Option<u64>,
+    #[serde(rename = "Event", skip_serializing_if = "Vec::is_empty")]
+    events: Vec<Event>,
+}
+
+///Table 7
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum SwitchingType {
+    #[default]
+    Media,
+    Bitstream,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct Switching {
+    #[serde(rename = "@interval")]
+    interval: u32,
+    #[serde(rename = "@type")]
+    r#type: Option<SwitchingType>,
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum RandomAccessType {
+    #[default]
+    Closed,
+    Open,
+    Gradual,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RandomAccess {
+    #[serde(rename = "@interval")]
+    interval: u32,
+    #[serde(rename = "@type")]
+    r#type: Option<RandomAccessType>,
+    #[serde(rename = "@minBufferTime")]
+    min_buffer_time: Option<XsDuration>,
+    #[serde(rename = "@bandwidth")]
+    bandwidth: Option<u32>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Label {
+    #[serde(rename = "@id")]
+    id: Option<u32>,
+    #[serde(rename = "@lang")]
+    lang: Option<XsLanguage>,
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum ProducerReferenceTimeType {
+    #[default]
+    Encoder,
+    Captured,
+    Application,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct ProducerReferenceTime {
+    #[serde(rename = "@id")]
+    id: u32,
+    #[serde(rename = "@inband")]
+    inband: Option<bool>,
+    #[serde(rename = "@type")]
+    r#type: Option<ProducerReferenceTimeType>,
+    /// type: applicationの時は必須、それ以外はあってはならない
+    #[serde(rename = "@applicationScheme")]
+    application_scheme: Option<String>,
+    #[serde(rename = "@wallClockTime")]
+    wall_clock_time: String,
+    #[serde(rename = "@presentationTime")]
+    presentation_time: u64,
+    #[serde(rename = "UTCTiming")]
+    utc_timing: Option<Descriptor>,
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum Source {
+    #[default]
+    Content,
+    Statistics,
+    // @source_descriptionが必要
+    Other,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct PopularityRate {
+    // 1 ~ 100の範囲指定
+    #[serde(rename = "@popularityRate")]
+    popularity_rate: u32,
+    #[serde(rename = "@start")]
+    start: Option<u64>,
+    #[serde(rename = "@r")]
+    repeat_count: Option<i32>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct ContentPopularityRate {
+    #[serde(rename = "@source")]
+    source: Source,
+    #[serde(rename = "@source_description")]
+    source_description: Option<String>,
+    #[serde(rename = "PR")]
+    popularity_rates: Vec<PopularityRate>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Resync {
+    #[serde(rename = "@type")]
+    r#type: Option<StreamAccessPoint>,
+    #[serde(rename = "@dT")]
+    diff_time: Option<u32>,
+    #[serde(rename = "@dImax")]
+    diff_index_max: Option<f32>,
+    #[serde(rename = "@dImin")]
+    diff_index_min: Option<f32>,
+    #[serde(rename = "@marker")]
+    marker: Option<bool>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+pub struct BaseURL {
+    #[serde(rename = "$text")]
+    base: AnyUri,
+    #[serde(rename = "@serviceLocation")]
+    service_location: Option<String>,
+    #[serde(rename = "@byteRange")]
+    byte_range: Option<String>,
+    #[serde(rename = "@availabilityTimeOffset")]
+    availability_time_offset: Option<f64>,
+    #[serde(rename = "@availabilityTimeComplete")]
+    availability_time_complete: Option<bool>,
+    #[serde(rename = "@timeShiftBufferDepth")]
+    time_shift_buffer_depth: Option<XsDuration>,
+    #[serde(rename = "@rangeAccess")]
+    range_access: Option<bool>,
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ModelPair {
+    #[serde(rename = "@bufferTime")]
+    buffer_time: XsDuration,
+    #[serde(rename = "@bandwidth")]
+    bandwidth: u32,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExtendedBandwidth {
+    #[serde(rename = "@vbr")]
+    vbr: Option<bool>,
+    #[serde(rename = "ModelPair")]
+    model_pair: Vec<ModelPair>,
+}
+
+#[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Url {
-    #[serde(rename = "@sourceURL", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "@sourceURL")]
     pub source_url: Option<AnyUri>,
-    #[serde(rename = "@range", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "@range")]
     pub range: Option<SingleRFC7233Range>,
 }
 
@@ -531,6 +950,23 @@ mod tests {
         let der = serde_plain::from_str::<XsDuration>(&ser);
 
         assert!(der.is_ok_and(|val| val == xs_duration));
+    }
+
+    #[test]
+    fn test_types_xs_id_valid() {
+        let input = "valid_ID-123";
+        let id = XsId::from_str(&input).unwrap();
+        let output = id.to_string();
+
+        assert_eq!(input, output.as_str());
+    }
+
+    #[test]
+    fn test_types_xs_id_invalid() {
+        let input = "123_invalid";
+        let ret = XsId::from_str(&input);
+
+        assert!(ret.is_err());
     }
 
     #[test]
@@ -621,6 +1057,42 @@ mod tests {
         let ser = list.to_string();
 
         assert_eq!(value, ser.as_str());
+    }
+
+    #[test]
+    fn test_types_codecs_fancy_valid() {
+        let input = "avc1.42E01E'jp'mp4a.40.2;channels=2";
+        let codecs = Codecs::from_str(&input).unwrap();
+
+        let output = codecs.to_string();
+
+        assert_eq!(input, output.as_str());
+    }
+
+    #[test]
+    fn test_types_codecs_fancy_invalid() {
+        let input = "avc1.42E01Ejpmp4a.40.2;channels=2";
+        let ret = Codecs::from_str(&input);
+
+        assert!(ret.is_err());
+    }
+
+    #[test]
+    fn test_types_codecs_simp_valid() {
+        let input = "avc1.42E01E,mp4a.40.2";
+        let codecs = Codecs::from_str(&input).unwrap();
+
+        let output = codecs.to_string();
+
+        assert_eq!(input, output.as_str());
+    }
+
+    #[test]
+    fn test_types_codecs_simp_invalid() {
+        let input = "h264,aac,";
+        let ret = Codecs::from_str(&input);
+
+        assert!(ret.is_err());
     }
 
     #[test]

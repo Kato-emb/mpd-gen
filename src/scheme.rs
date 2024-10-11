@@ -1,9 +1,12 @@
 use std::fmt;
 
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use crate::{error::MpdError, Result};
+use crate::{
+    entity::{PATTERN_URL, PATTERN_URN},
+    error::MpdError,
+    Result,
+};
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum Profile {
@@ -27,10 +30,7 @@ impl std::str::FromStr for Profile {
     type Err = MpdError;
 
     fn from_str(s: &str) -> Result<Self> {
-        let urn_re = Regex::new(r"^urn:[a-zA-Z0-9\-]+(:[a-zA-Z0-9\-]+)*$").unwrap();
-        let url_re = Regex::new(r"^https?://[a-zA-Z0-9\-._~:/?#\[@\]!$&'()*+,;=]+$").unwrap();
-
-        if urn_re.is_match(s) || url_re.is_match(s) {
+        if PATTERN_URN.is_match(s) || PATTERN_URL.is_match(s) {
             Ok(match s {
                 "urn:mpeg:dash:profile:full:2011" => Profile::Full,
                 "urn:mpeg:dash:profile:isoff-on-demand:2011" => Profile::IsoOnDemand,
