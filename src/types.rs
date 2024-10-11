@@ -400,7 +400,7 @@ impl FromStr for Tag {
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "lowercase")]
-pub enum RFC6838ContentType {
+pub enum ContentType {
     Text,
     Image,
     Audio,
@@ -411,7 +411,9 @@ pub enum RFC6838ContentType {
 }
 /// SAP
 #[repr(u8)]
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(
+    Debug, Default, Clone, Copy, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash,
+)]
 pub enum StreamAccessPoint {
     #[default]
     /// Closed GoP random access point
@@ -628,7 +630,7 @@ impl FromStr for SingleRFC7233Range {
     }
 }
 
-type AnyUri = String;
+pub type AnyUri = String;
 
 /// Table 32
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -867,6 +869,29 @@ pub struct ExtendedBandwidth {
     vbr: Option<bool>,
     #[serde(rename = "ModelPair")]
     model_pair: Vec<ModelPair>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct ContentComponent {
+    #[serde(rename = "@id")]
+    id: Option<u32>,
+    #[serde(rename = "@lang")]
+    lang: Option<XsLanguage>,
+    #[serde(rename = "@contentType")]
+    content_type: Option<ContentType>,
+    #[serde(rename = "@par")]
+    par: Option<AspectRatio>,
+    #[serde(rename = "@tag")]
+    tag: Option<Tag>,
+    #[serde(rename = "Accessibility")]
+    accessibility: Option<Vec<Descriptor>>,
+    #[serde(rename = "Role")]
+    role: Option<Vec<Descriptor>>,
+    #[serde(rename = "Rating")]
+    rating: Option<Vec<Descriptor>>,
+    #[serde(rename = "Viewpoint")]
+    viewpoint: Option<Vec<Descriptor>>,
 }
 
 #[skip_serializing_none]

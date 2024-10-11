@@ -2,13 +2,7 @@ use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
-use crate::types::{
-    AspectRatio, AudioSamplingRate, BaseURL, Codecs, ContentPopularityRate, ContentProtection,
-    Descriptor, EventStream, ExtendedBandwidth, FrameRate, Label, ListOfFourCC, ListOfProfiles,
-    ProducerReferenceTime, RandomAccess, Resync, StreamAccessPoint, Switching, Tag, UIntVector,
-    VideoScan,
-};
-use crate::types::{StringNoWhitespace, StringVector};
+use crate::types::*;
 
 use super::segment::{SegmentBase, SegmentList, SegmentTemplate};
 
