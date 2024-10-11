@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
@@ -26,7 +26,7 @@ pub enum Profile {
     Other(String),
 }
 
-impl std::str::FromStr for Profile {
+impl FromStr for Profile {
     type Err = MpdError;
 
     fn from_str(s: &str) -> Result<Self> {

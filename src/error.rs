@@ -8,4 +8,6 @@ pub enum MpdError {
     UnmatchedPattern,
     #[error("{0}")]
     ParseError(#[from] std::num::ParseIntError),
+    #[error("{0}")]
+    ChronoParseError(#[from] chrono::format::ParseError),
 }

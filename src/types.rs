@@ -1,6 +1,7 @@
 use core::str;
 use std::{fmt, ops::Deref, result, str::FromStr};
 
+use chrono::{DateTime, Utc};
 use num::{integer::gcd, BigInt};
 use serde::{Deserialize, Serialize};
 use serde_with::{skip_serializing_none, DeserializeFromStr, SerializeDisplay};
@@ -576,6 +577,31 @@ impl FromStr for XsLanguage {
 }
 
 #[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
+pub struct XsDateTime {
+    value: DateTime<Utc>,
+}
+
+impl fmt::Display for XsDateTime {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.value
+                .to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true) // 小数点以下の扱いをAutoにしているがこれで問題ないか
+        )
+    }
+}
+
+impl FromStr for XsDateTime {
+    type Err = MpdError;
+
+    fn from_str(s: &str) -> Result<Self> {
+        let value = DateTime::parse_from_rfc3339(s)?.to_utc();
+        Ok(Self { value })
+    }
+}
+
+#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
 pub struct SingleRFC7233Range {
     pub start: Option<u64>,
     pub end: Option<u64>,
@@ -1083,6 +1109,14 @@ pub struct Preselection {
     // common attributes elements
 }
 
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum PresentationType {
+    #[default]
+    Static,
+    Dynamic,
+}
+
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Url {
@@ -1181,6 +1215,17 @@ mod tests {
         let ret = XsId::from_str(&input);
 
         assert!(ret.is_err());
+    }
+
+    #[test]
+    fn test_types_xs_datetime_parse() {
+        // let input = "2024-10-11T00:56:12.173379611Z";
+        let input = "2014-10-17T17:17:05Z";
+        let datetime = XsDateTime::from_str(&input).unwrap();
+        println!("{:?}", datetime);
+
+        let output = datetime.to_string();
+        assert_eq!(input, output.as_str());
     }
 
     #[test]
