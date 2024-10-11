@@ -174,7 +174,7 @@ mod tests {
             .unwrap();
 
         let representation = RepresentationBuilder::default()
-            .id(StringNoWhitespace::from_str("720p").unwrap())
+            .id(NoWhitespace::from_str("720p").unwrap())
             .codecs(Codecs::from_str("avc1.4d0028").unwrap())
             .bandwidth(4_000_000u32)
             .width(1280u32)

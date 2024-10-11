@@ -11,7 +11,7 @@ use super::segment::{SegmentBase, SegmentList, SegmentTemplate};
 #[builder(setter(into, strip_option), default)]
 pub struct Representation {
     #[serde(rename = "@id")]
-    id: StringNoWhitespace,
+    id: NoWhitespace,
     #[serde(rename = "@bandwidth")]
     bandwidth: u32,
     #[serde(rename = "@qualityRanking")]
@@ -190,7 +190,7 @@ mod tests {
     #[test]
     fn test_element_representation() {
         let repr = RepresentationBuilder::default()
-            .id(StringNoWhitespace::from_str("aaaaaa").unwrap())
+            .id(NoWhitespace::from_str("aaaaaa").unwrap())
             .bandwidth(2_000_000u32)
             .dependency_id(["a".to_string(), "b".to_string()].as_slice())
             .association_type([0x54534554, 0x4D4A5047].as_slice())

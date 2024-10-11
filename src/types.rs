@@ -24,17 +24,17 @@ pub enum XLinkActure {
 }
 
 #[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
-pub struct StringNoWhitespace {
+pub struct NoWhitespace {
     value: String,
 }
 
-impl fmt::Display for StringNoWhitespace {
+impl fmt::Display for NoWhitespace {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.value)
     }
 }
 
-impl FromStr for StringNoWhitespace {
+impl FromStr for NoWhitespace {
     type Err = MpdError;
 
     fn from_str(s: &str) -> result::Result<Self, Self::Err> {
@@ -665,7 +665,7 @@ pub struct ContentProtection {
     #[serde(rename = "@refId")]
     ref_id: Option<XsId>,
     #[serde(rename = "@robustness")]
-    robustness: Option<StringNoWhitespace>,
+    robustness: Option<NoWhitespace>,
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -892,6 +892,195 @@ pub struct ContentComponent {
     rating: Option<Vec<Descriptor>>,
     #[serde(rename = "Viewpoint")]
     viewpoint: Option<Vec<Descriptor>>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct Latency {
+    #[serde(rename = "@referenceId")]
+    reference_id: Option<i32>,
+    #[serde(rename = "@target")]
+    target_latency: Option<i32>,
+    #[serde(rename = "@max")]
+    max_latency: Option<i32>,
+    #[serde(rename = "@min")]
+    min_latency: Option<i32>,
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PlaybackRate {
+    #[serde(rename = "@max")]
+    max_playback_rate: Option<f32>, // Real
+    #[serde(rename = "@min")]
+    min_playback_rate: Option<f32>, // Real
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum QualityMediaType {
+    Video,
+    Audio,
+    #[default]
+    Any,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct OperatingQuality {
+    #[serde(rename = "@mediaType")]
+    media_type: Option<QualityMediaType>,
+    #[serde(rename = "@min")]
+    min_quality_ranking: Option<i32>,
+    #[serde(rename = "@max")]
+    max_quality_ranking: Option<i32>,
+    #[serde(rename = "@target")]
+    target_quality_ranking: Option<i32>,
+    #[serde(rename = "@type")]
+    quality_ranking_type: Option<AnyUri>,
+    #[serde(rename = "@maxDifference")]
+    max_quality_difference: Option<i32>,
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum BandwidthMediaType {
+    Video,
+    Audio,
+    Any,
+    #[default]
+    All,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct OperatingBandwidth {
+    #[serde(rename = "@mediaType")]
+    media_type: Option<BandwidthMediaType>,
+    #[serde(rename = "@min")]
+    min_bandwidth: Option<i32>,
+    #[serde(rename = "@max")]
+    max_bandwidth: Option<i32>,
+    #[serde(rename = "@target")]
+    target_bandwidth: Option<i32>,
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ServiceDescription {
+    #[serde(rename = "@id")]
+    id: u32,
+    #[serde(rename = "Scope", skip_serializing_if = "Vec::is_empty")]
+    scope: Vec<Descriptor>,
+    #[serde(rename = "Latency", skip_serializing_if = "Vec::is_empty")]
+    latency: Vec<Latency>,
+    #[serde(rename = "PlaybackRate", skip_serializing_if = "Vec::is_empty")]
+    playback_rate: Vec<PlaybackRate>,
+    #[serde(rename = "OperatingQuality", skip_serializing_if = "Vec::is_empty")]
+    operating_quality: Vec<OperatingQuality>,
+    #[serde(rename = "OperatingBandwidth", skip_serializing_if = "Vec::is_empty")]
+    operating_bandwidth: Vec<OperatingBandwidth>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct Subset {
+    #[serde(rename = "@contains")]
+    contains: UIntVector,
+    #[serde(rename = "@id")]
+    id: Option<String>,
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "kebab-case")]
+pub enum PreselectionOrderType {
+    #[default]
+    Undefined,
+    TimeOrdered,
+    FullyOrdered,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Preselection {
+    #[serde(rename = "@id")]
+    id: Option<NoWhitespace>,
+    #[serde(rename = "@preselectionComponents")]
+    preselection_components: Vec<StringVector>,
+    #[serde(rename = "@lang")]
+    lang: Option<XsLanguage>,
+    #[serde(rename = "@order")]
+    order: Option<PreselectionOrderType>,
+    #[serde(rename = "Accessibility")]
+    accessibility: Option<Vec<Descriptor>>,
+    #[serde(rename = "Role")]
+    role: Option<Vec<Descriptor>>,
+    #[serde(rename = "Rating")]
+    rating: Option<Vec<Descriptor>>,
+    #[serde(rename = "Viewpoint")]
+    viewpoint: Option<Vec<Descriptor>>,
+    // common attributes elements
+    #[serde(rename = "@profiles")]
+    profiles: Option<ListOfProfiles>,
+    #[serde(rename = "@width")]
+    width: Option<u32>,
+    #[serde(rename = "@height")]
+    height: Option<u32>,
+    #[serde(rename = "@sar")]
+    sar: Option<AspectRatio>,
+    #[serde(rename = "@frameRate")]
+    framerate: Option<FrameRate>,
+    #[serde(rename = "@audioSamplingRate")]
+    audio_sampling_rate: Option<AudioSamplingRate>,
+    #[serde(rename = "@mimeType")]
+    mime_type: Option<String>,
+    #[serde(rename = "@segmentProfiles")]
+    segment_profiles: Option<ListOfFourCC>,
+    #[serde(rename = "@codecs")]
+    codecs: Option<Codecs>,
+    #[serde(rename = "@containerProfiles")]
+    container_profiles: Option<ListOfFourCC>,
+    #[serde(rename = "@maximumSAPPeriod")]
+    maximum_sap_period: Option<f64>,
+    #[serde(rename = "@startWithSAP")]
+    start_with_sap: Option<StreamAccessPoint>,
+    #[serde(rename = "@maxPlayoutRate")]
+    max_playout_rate: Option<f64>,
+    #[serde(rename = "@codingDependency")]
+    coding_dependency: Option<bool>,
+    #[serde(rename = "@scanType")]
+    scan_type: Option<VideoScan>,
+    #[serde(rename = "@selectionPriority")]
+    selection_priority: Option<u32>,
+    #[serde(rename = "@tag")]
+    tag: Option<Tag>,
+    #[serde(rename = "FramePacking")]
+    frame_packing: Option<Vec<Descriptor>>,
+    #[serde(rename = "AudioChannelConfiguration")]
+    audio_channel_configuration: Option<Vec<Descriptor>>,
+    #[serde(rename = "ContentProtection")]
+    content_protection: Option<Vec<ContentProtection>>,
+    #[serde(rename = "OutputProtection")]
+    output_protection: Option<Vec<Descriptor>>,
+    #[serde(rename = "EssentialProperty")]
+    essential_property: Option<Vec<Descriptor>>,
+    #[serde(rename = "SupplementalProperty")]
+    supplemental_property: Option<Vec<Descriptor>>,
+    #[serde(rename = "InbandEventStream")]
+    inband_event_stream: Option<Vec<EventStream>>,
+    #[serde(rename = "Switching")]
+    switching: Option<Vec<Switching>>,
+    #[serde(rename = "RandomAccess")]
+    random_access: Option<Vec<RandomAccess>>,
+    #[serde(rename = "GroupLabel")]
+    group_lavel: Option<Vec<Label>>,
+    #[serde(rename = "Label")]
+    lavel: Option<Vec<Label>>,
+    #[serde(rename = "ProducerReferenceTime")]
+    producer_reference_time: Option<Vec<ProducerReferenceTime>>,
+    #[serde(rename = "ContentPopularityRate")]
+    content_popularity_rate: Option<Vec<ContentPopularityRate>>,
+    #[serde(rename = "Resync")]
+    resync: Option<Vec<Resync>>,
+    // common attributes elements
 }
 
 #[skip_serializing_none]
