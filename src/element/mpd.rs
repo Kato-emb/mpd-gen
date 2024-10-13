@@ -2,6 +2,7 @@ use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
+use crate::element::*;
 use crate::types::*;
 
 use super::{
@@ -44,7 +45,7 @@ pub struct MPD {
     #[serde(rename = "BaseURL")]
     base_url: Option<Vec<BaseURL>>,
     #[serde(rename = "Location")]
-    location: Option<Vec<AnyUri>>,
+    location: Option<Vec<XsAnyURI>>,
     #[serde(rename = "PatchLocation")]
     patch_location: Option<Vec<PatchLocation>>,
     #[serde(rename = "ServiceDescription")]

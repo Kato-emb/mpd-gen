@@ -2,6 +2,7 @@ use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
+use crate::element::*;
 use crate::types::*;
 
 use super::{
@@ -29,7 +30,7 @@ pub struct AdaptationSet {
     #[serde(rename = "@height")]
     height: Option<u32>,
     #[serde(rename = "@sar")]
-    sar: Option<AspectRatio>,
+    sar: Option<Ratio>,
     #[serde(rename = "@frameRate")]
     framerate: Option<FrameRate>,
     #[serde(rename = "@audioSamplingRate")]
@@ -90,7 +91,7 @@ pub struct AdaptationSet {
     #[serde(rename = "@contentType")]
     content_type: Option<ContentType>,
     #[serde(rename = "@par")]
-    par: Option<AspectRatio>,
+    par: Option<Ratio>,
     #[serde(rename = "@minBandwidth")]
     min_bandwidth: Option<u32>,
     #[serde(rename = "@maxBandwidth")]
@@ -118,7 +119,7 @@ pub struct AdaptationSet {
     #[serde(rename = "@initializationSetRef")]
     initialization_set_ref: Option<UIntVector>,
     #[serde(rename = "@initializationPrincipal")]
-    initialization_principal: Option<AnyUri>,
+    initialization_principal: Option<XsAnyURI>,
     #[serde(rename = "Accessibility")]
     accessibility: Option<Vec<Descriptor>>,
     #[serde(rename = "Role")]

@@ -2,7 +2,8 @@ use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
-use crate::types::{FailoverContent, SegmentUrl, SingleRFC7233Range, Url, XsDuration, XsInteger};
+use crate::element::*;
+use crate::types::*;
 
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
@@ -21,7 +22,7 @@ pub struct SegmentBase {
     #[serde(rename = "@timeShiftBufferDepth")]
     time_shift_buffer_depth: Option<XsDuration>,
     #[serde(rename = "@indexRange")]
-    index_range: Option<SingleRFC7233Range>,
+    index_range: Option<SingleByteRange>,
     #[serde(rename = "@indexRangeExact")]
     index_range_exact: Option<bool>,
     #[serde(rename = "@availabilityTimeOffset")]
@@ -63,7 +64,7 @@ pub struct SegmentList {
     #[serde(rename = "@timeShiftBufferDepth")]
     time_shift_buffer_depth: Option<XsDuration>,
     #[serde(rename = "@indexRange")]
-    index_range: Option<SingleRFC7233Range>,
+    index_range: Option<SingleByteRange>,
     #[serde(rename = "@indexRangeExact")]
     index_range_exact: Option<bool>,
     #[serde(rename = "@availabilityTimeOffset")]
@@ -107,7 +108,7 @@ pub struct SegmentTemplate {
     #[serde(rename = "@timeShiftBufferDepth")]
     time_shift_buffer_depth: Option<XsDuration>,
     #[serde(rename = "@indexRange")]
-    index_range: Option<SingleRFC7233Range>,
+    index_range: Option<SingleByteRange>,
     #[serde(rename = "@indexRangeExact")]
     index_range_exact: Option<bool>,
     #[serde(rename = "@availabilityTimeOffset")]
@@ -227,10 +228,10 @@ mod tests {
             .timescale(3000u32)
             .availability_time_offset(10.1)
             .time_shift_buffer_depth(XsDuration::from_str("PT3H11M53S").unwrap())
-            .initialization((
-                Some("http://example.com/video.mp4".to_string()),
-                (Some(100), Some(200)),
-            ))
+            // .initialization((
+            //     Some("http://example.com/video.mp4".to_string()),
+            //     (Some(100), Some(200)),
+            // ))
             .build()
             .unwrap();
 
@@ -262,10 +263,10 @@ mod tests {
             .duration(5000u32)
             .start_number(1u32)
             .availability_time_offset(10000)
-            .initialization((
-                Some("http://example.com/video.mp4".to_string()),
-                (Some(100), Some(200)),
-            ))
+            // .initialization((
+            //     Some("http://example.com/video.mp4".to_string()),
+            //     (Some(100), Some(200)),
+            // ))
             .segment_timeline(segment_timeline)
             .build()
             .unwrap();

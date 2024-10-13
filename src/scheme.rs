@@ -2,11 +2,7 @@ use std::{fmt, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    entity::{PATTERN_URL, PATTERN_URN},
-    error::MpdError,
-    Result,
-};
+use crate::{entity::*, error::MpdError, Result};
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum Profile {
@@ -30,7 +26,7 @@ impl FromStr for Profile {
     type Err = MpdError;
 
     fn from_str(s: &str) -> Result<Self> {
-        if PATTERN_URN.is_match(s) || PATTERN_URL.is_match(s) {
+        if PATTERN_PROFILE.is_match(s) {
             Ok(match s {
                 "urn:mpeg:dash:profile:full:2011" => Profile::Full,
                 "urn:mpeg:dash:profile:isoff-on-demand:2011" => Profile::IsoOnDemand,

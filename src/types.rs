@@ -1,21 +1,13 @@
-use core::str;
-use std::{fmt, ops::Deref, result, str::FromStr};
+use std::{fmt, ops::Deref, str::FromStr};
 
-use chrono::{DateTime, Utc};
-use num::{integer::gcd, BigInt};
+use chrono::{DateTime, Local, NaiveDateTime, Utc};
+use num::{integer::gcd, rational, BigInt};
 use serde::{Deserialize, Serialize};
-use serde_with::{skip_serializing_none, DeserializeFromStr, SerializeDisplay};
+use serde_with::{DeserializeFromStr, SerializeDisplay};
 
-use crate::{
-    entity::{
-        PATTERN_FANCY, PATTERN_FRAMERATE, PATTERN_ID, PATTERN_LANG, PATTERN_NO_WHITESPACE,
-        PATTERN_RFC7233_RANGE, PATTERN_SIMPLE,
-    },
-    error::MpdError,
-    scheme::Profile,
-    Result,
-};
+use crate::{entity::*, error::MpdError, scheme::Profile, Result};
 
+/// xlink:acture
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "camelCase")]
 pub enum XLinkActure {
@@ -24,31 +16,297 @@ pub enum XLinkActure {
     OnRequest,
 }
 
+/// xs:anyURI
 #[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
-pub struct NoWhitespace {
+pub struct XsAnyURI {
     value: String,
 }
 
-impl fmt::Display for NoWhitespace {
+impl fmt::Display for XsAnyURI {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.value)
     }
 }
 
-impl FromStr for NoWhitespace {
+impl FromStr for XsAnyURI {
     type Err = MpdError;
 
-    fn from_str(s: &str) -> result::Result<Self, Self::Err> {
-        if !PATTERN_NO_WHITESPACE.is_match(s) {
-            return Err(MpdError::UnmatchedPattern);
-        }
-
+    fn from_str(s: &str) -> Result<Self> {
         Ok(Self {
             value: s.to_string(),
         })
     }
 }
 
+impl<T> From<T> for XsAnyURI
+where
+    T: AsRef<str>,
+{
+    fn from(value: T) -> Self {
+        Self {
+            value: value.as_ref().to_string(),
+        }
+    }
+}
+
+/// xs:integer
+#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
+pub struct XsInteger {
+    value: BigInt,
+}
+
+impl<T> From<T> for XsInteger
+where
+    T: Into<BigInt>,
+{
+    fn from(value: T) -> Self {
+        Self {
+            value: value.into(),
+        }
+    }
+}
+
+impl fmt::Display for XsInteger {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value.to_string())
+    }
+}
+
+impl FromStr for XsInteger {
+    type Err = MpdError;
+
+    fn from_str(s: &str) -> Result<Self> {
+        if !PATTERN_INTEGER.is_match(s) {
+            return Err(MpdError::UnmatchedPattern);
+        }
+
+        let value = s
+            .parse::<BigInt>()
+            .map_err(|_| MpdError::InvalidData("Failed to parse xs:integer"))?;
+
+        Ok(Self { value })
+    }
+}
+
+/// xs:ID
+///
+/// <b>※Warn</b> : No check is made for uniqueness within an XML instance.
+#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
+pub struct XsId {
+    value: String,
+}
+
+impl fmt::Display for XsId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
+impl FromStr for XsId {
+    type Err = MpdError;
+
+    fn from_str(s: &str) -> Result<Self> {
+        // xs:token
+        let value = s.trim().replace("\n", " ").replace("\r\n", " ");
+
+        if !PATTERN_NC_NAME.is_match(&value) {
+            return Err(MpdError::UnmatchedPattern);
+        }
+
+        Ok(Self { value })
+    }
+}
+
+/// xs:language
+#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
+pub struct XsLanguage {
+    value: String,
+}
+
+impl fmt::Display for XsLanguage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
+impl FromStr for XsLanguage {
+    type Err = MpdError;
+
+    fn from_str(s: &str) -> Result<Self> {
+        // xs:token
+        let value = s.trim().replace("\n", " ").replace("\r\n", " ");
+
+        if !PATTERN_LANG.is_match(&value) {
+            return Err(MpdError::UnmatchedPattern);
+        }
+
+        Ok(Self { value })
+    }
+}
+
+/// xs:dateTime
+#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
+pub struct XsDateTime {
+    value: DateTime<Utc>,
+}
+
+impl fmt::Display for XsDateTime {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.value
+                .to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true) // 小数点以下の扱いをAutoにしているがこれで問題ないか
+        )
+    }
+}
+
+impl FromStr for XsDateTime {
+    type Err = MpdError;
+
+    fn from_str(s: &str) -> Result<Self> {
+        let time_part = s.split('T').nth(1).ok_or(MpdError::UnmatchedPattern)?;
+
+        let value = if time_part.contains('Z') || time_part.contains('+') || time_part.contains('-')
+        {
+            DateTime::parse_from_rfc3339(s)?.to_utc()
+        } else {
+            let datetime = NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.f")?
+                .and_local_timezone(Local)
+                .unwrap();
+            datetime.to_utc()
+        };
+
+        Ok(Self { value })
+    }
+}
+
+/// xs:duration
+#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq)]
+pub struct XsDuration {
+    value: std::time::Duration,
+    is_negative: bool,
+}
+
+impl fmt::Display for XsDuration {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut seconds = self.value.as_secs();
+        let mut nanos = self.value.subsec_nanos();
+
+        let hours = seconds / 3600;
+        seconds = seconds % 3600;
+
+        let minutes = seconds / 60;
+        seconds = seconds % 60;
+
+        let sec_with_fraction = if nanos != 0 {
+            // 末尾の０を削除
+            while nanos % 10 == 0 {
+                nanos /= 10;
+            }
+
+            format!("{}.{}", seconds, nanos)
+        } else {
+            format!("{}", seconds)
+        };
+
+        let sign = if self.is_negative { "-" } else { "" };
+
+        write!(f, "{}PT{}H{}M{}S", sign, hours, minutes, sec_with_fraction)
+    }
+}
+
+impl FromStr for XsDuration {
+    type Err = MpdError;
+
+    fn from_str(s: &str) -> Result<Self> {
+        let mut chars = s.chars().peekable();
+
+        // Check for negative
+        let is_negative = if chars.peek() == Some(&'-') {
+            chars.next();
+            true
+        } else {
+            false
+        };
+
+        if chars.next() != Some('P') {
+            return Err(MpdError::UnmatchedPattern);
+        }
+
+        let mut duration = std::time::Duration::default();
+        let mut flag = 0b0000_0000;
+
+        let mut value = String::new();
+
+        while let Some(c) = chars.next() {
+            if c.is_digit(10) || (c == '.' && !value.contains('.')) {
+                value.push(c);
+            } else {
+                if c == 'T' {
+                    if chars.peek() != None {
+                        flag |= 0b0000_1000;
+                        continue;
+                    } else {
+                        return Err(MpdError::UnmatchedPattern);
+                    }
+                } else if value.is_empty() {
+                    return Err(MpdError::UnmatchedPattern);
+                }
+
+                match c {
+                    'Y' if flag == 0b0000_0000 => {
+                        let years = value.parse::<u64>()? * 365 * 24 * 60 * 60;
+                        duration += std::time::Duration::from_secs(years);
+                        flag |= 0b0000_0001;
+                    }
+                    'M' if flag < 0b0000_0010 => {
+                        let months = value.parse::<u64>()? * 30 * 24 * 60 * 60;
+                        duration += std::time::Duration::from_secs(months);
+                        flag |= 0b0000_0010;
+                    }
+                    'D' if flag < 0b0000_0100 => {
+                        let days = value.parse::<u64>()? * 24 * 60 * 60;
+                        duration += std::time::Duration::from_secs(days);
+                        flag |= 0b0000_0100;
+                    }
+                    'H' if flag >= 0b0000_1000 && flag < 0b0001_0000 => {
+                        let hours = value.parse::<u64>()? * 60 * 60;
+                        duration += std::time::Duration::from_secs(hours);
+                        flag |= 0b0001_0000;
+                    }
+                    'M' if flag >= 0b0000_1000 && flag < 0b0010_0000 => {
+                        let minutes = value.parse::<u64>()? * 60;
+                        duration += std::time::Duration::from_secs(minutes);
+                        flag |= 0b0010_0000;
+                    }
+                    'S' if flag >= 0b0000_1000 && flag < 0b0100_0000 => {
+                        duration += if value.contains('.') {
+                            let nanos = (value.parse::<f64>()? * 1_000_000_000.0) as u64;
+                            std::time::Duration::from_nanos(nanos)
+                        } else {
+                            std::time::Duration::from_secs(value.parse::<u64>()?)
+                        };
+                    }
+                    _ => return Err(MpdError::UnmatchedPattern),
+                }
+
+                value.clear();
+            }
+        }
+
+        if flag & 0b1111_0111 != 0 {
+            Ok(Self {
+                value: duration,
+                is_negative,
+            })
+        } else {
+            Err(MpdError::UnmatchedPattern)
+        }
+    }
+}
+
+/// 4CC as per latest 14496-12
 #[derive(Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct FourCC {
     value: [u8; 4],
@@ -58,7 +316,7 @@ impl Deref for FourCC {
     type Target = str;
 
     fn deref(&self) -> &Self::Target {
-        str::from_utf8(&self.value).unwrap()
+        std::str::from_utf8(&self.value).unwrap()
     }
 }
 
@@ -116,33 +374,520 @@ impl fmt::Display for FourCC {
     }
 }
 
+/// Ratio Type for sar and par
+#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
+pub struct Ratio {
+    horizontal: u32,
+    vertical: u32,
+}
+
+impl fmt::Display for Ratio {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}:{}", self.horizontal, self.vertical)
+    }
+}
+
+impl FromStr for Ratio {
+    type Err = MpdError;
+
+    fn from_str(s: &str) -> Result<Self> {
+        let parts: Vec<&str> = s.split(':').collect();
+
+        if parts.len() == 2 {
+            let horizontal = parts[0].parse::<u32>()?;
+            let vertical = parts[1].parse::<u32>()?;
+
+            Ok(Self {
+                horizontal,
+                vertical,
+            })
+        } else {
+            Err(MpdError::UnmatchedPattern)
+        }
+    }
+}
+
+impl From<(u32, u32)> for Ratio {
+    fn from(value: (u32, u32)) -> Self {
+        let (numer, denom) = value;
+        let divisor = gcd(numer, denom);
+        Self {
+            horizontal: numer / divisor,
+            vertical: denom / divisor,
+        }
+    }
+}
+
+/// Type for Frame Rate
+#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
+pub struct FrameRate {
+    value: rational::Ratio<u32>,
+}
+
+impl fmt::Display for FrameRate {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}/{}", self.value.numer(), self.value.denom())
+    }
+}
+
+impl FromStr for FrameRate {
+    type Err = MpdError;
+
+    fn from_str(s: &str) -> Result<Self> {
+        let parts: Vec<&str> = s.split('/').collect();
+
+        if parts.len() == 0 || parts.len() > 2 {
+            return Err(MpdError::UnmatchedPattern);
+        }
+
+        let numer = parts[0].parse::<u32>()?;
+
+        let denom = if parts.len() == 2 {
+            parts[1].parse::<u32>()?
+        } else {
+            1
+        };
+
+        if denom == 0 {
+            return Err(MpdError::InvalidData(
+                "Don't set ZERO to the framerate denom",
+            ));
+        }
+
+        Ok(Self {
+            value: rational::Ratio::new(numer, denom),
+        })
+    }
+}
+
+/// String without white spaces
+///
+/// base : xs:string
+#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
+pub struct NoWhitespace {
+    value: String,
+}
+
+impl fmt::Display for NoWhitespace {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
+impl FromStr for NoWhitespace {
+    type Err = MpdError;
+
+    fn from_str(s: &str) -> Result<Self> {
+        if !PATTERN_NO_WHITESPACE.is_match(s) {
+            return Err(MpdError::UnmatchedPattern);
+        }
+
+        Ok(Self {
+            value: s.to_string(),
+        })
+    }
+}
+
+/// Single RFC7233 Byte Range
+///
+/// RFC7233
+#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
+pub struct SingleByteRange {
+    first: u32,
+    last: Option<u32>,
+}
+
+impl fmt::Display for SingleByteRange {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let first = self.first.to_string();
+        let last = self.last.map_or("".to_string(), |n| n.to_string());
+        write!(f, "{}-{}", first, last)
+    }
+}
+
+impl FromStr for SingleByteRange {
+    type Err = MpdError;
+
+    fn from_str(s: &str) -> Result<Self> {
+        let parts: Vec<&str> = s.split('-').collect();
+
+        if parts.len() != 2 {
+            return Err(MpdError::UnmatchedPattern);
+        }
+
+        let first = parts[0].parse::<u32>()?;
+        let last = if !parts[1].is_empty() {
+            Some(parts[1].parse::<u32>()?)
+        } else {
+            None
+        };
+
+        Ok(Self { first, last })
+    }
+}
+
+/// Type for RFC6838 Content Type
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum ContentType {
+    Text,
+    Image,
+    Audio,
+    #[default]
+    Video,
+    Application,
+    Font,
+}
+
+/// Stream Access Point type enumeration
+#[repr(u8)]
+#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
+pub enum StreamAccessPoint {
+    #[default]
+    /// Closed GoP random access point
+    ///
+    /// Tept = Tdec = Tsap = Tptf
+    Type1 = 1,
+    /// Closed GoP random access point
+    ///
+    /// Tept = Tdec = Tsap < Tptf
+    Type2 = 2,
+    /// Open GoP random access point
+    ///
+    /// Tept < Tdec = Tsap <= Tptf
+    Type3 = 3,
+    /// Gradual Decoding Refresh (GDR) random access point
+    ///
+    /// Tept <= Tptf < Tdec = Tsap
+    Type4 = 4,
+    /// Tept = Tdec < Tsap
+    Type5 = 5,
+    /// Tept < Tdec < Tsap
+    Type6 = 6,
+}
+
+impl TryFrom<u8> for StreamAccessPoint {
+    type Error = MpdError;
+
+    fn try_from(value: u8) -> Result<Self> {
+        match value {
+            1 => Ok(Self::Type1),
+            2 => Ok(Self::Type2),
+            3 => Ok(Self::Type3),
+            4 => Ok(Self::Type4),
+            5 => Ok(Self::Type5),
+            6 => Ok(Self::Type6),
+            _ => Err(MpdError::InvalidData("SAP values must be 1 to 6")),
+        }
+    }
+}
+
+impl fmt::Display for StreamAccessPoint {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.clone() as u8)
+    }
+}
+
+impl FromStr for StreamAccessPoint {
+    type Err = MpdError;
+
+    fn from_str(s: &str) -> Result<Self> {
+        Ok(StreamAccessPoint::try_from(s.parse::<u8>()?)?)
+    }
+}
+
+/// RFC6381 fancy-list without enclosing double quotes
+///
+/// fancy-list := `[charset] "'" [language] "'" id-list`
+#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
+pub struct FancyList {
+    charset: Option<String>,
+    language: Option<String>,
+    codecs: Vec<String>,
+}
+
+impl fmt::Display for FancyList {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let charset = self.charset.as_deref().unwrap_or("");
+
+        if let Some(language) = self.language.as_deref() {
+            write!(f, "{}'{}'{}", charset, language, self.codecs.join(","))
+        } else {
+            write!(f, "{}{}", charset, self.codecs.join(","))
+        }
+    }
+}
+
+impl FromStr for FancyList {
+    type Err = MpdError;
+
+    fn from_str(s: &str) -> Result<Self> {
+        let Some(caps) = PATTERN_FANCY.captures(s) else {
+            return Err(MpdError::UnmatchedPattern);
+        };
+
+        let charset = caps.name("charset").map(|s| s.as_str().to_string());
+        let language = caps.name("language").map(|s| s.as_str().to_string());
+        let codecs = caps
+            .name("codecs")
+            .unwrap()
+            .as_str()
+            .split(",")
+            .map(|s| s.to_string())
+            .collect();
+
+        Ok(Self {
+            charset,
+            language,
+            codecs,
+        })
+    }
+}
+
+/// RFC6381 simp-list without enclosing double quotes
+///
+/// simp-list := `id-simple *( "," id-simple )`
+#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
+pub struct SimpList {
+    codecs: Vec<String>,
+}
+
+impl fmt::Display for SimpList {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.codecs.join(","))
+    }
+}
+
+impl FromStr for SimpList {
+    type Err = MpdError;
+
+    fn from_str(s: &str) -> Result<Self> {
+        if !PATTERN_SIMPLE.is_match(s) {
+            return Err(MpdError::UnmatchedPattern);
+        }
+
+        let codecs = s.split(",").map(|s| s.to_string()).collect();
+        Ok(Self { codecs })
+    }
+}
+
+/// CodecsType
+#[derive(Debug, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
+pub enum Codecs {
+    Fancy(FancyList),
+    Simp(SimpList),
+}
+
+impl fmt::Display for Codecs {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Self::Fancy(fancy) => fancy.to_string(),
+            Self::Simp(simp) => simp.to_string(),
+        };
+
+        write!(f, "{s}")
+    }
+}
+
+impl FromStr for Codecs {
+    type Err = MpdError;
+
+    fn from_str(s: &str) -> Result<Self> {
+        if s.contains("'") || s.contains(".") {
+            Ok(Self::Fancy(FancyList::from_str(s)?))
+        } else {
+            Ok(Self::Simp(SimpList::from_str(s)?))
+        }
+    }
+}
+
+/// Tag
+///
+/// base : xs:string
+#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
+pub struct Tag {
+    value: String,
+}
+
+impl fmt::Display for Tag {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
+impl FromStr for Tag {
+    type Err = MpdError;
+
+    fn from_str(s: &str) -> Result<Self> {
+        Ok(Tag {
+            value: s.to_string(),
+        })
+    }
+}
+
+impl<S> From<S> for Tag
+where
+    S: AsRef<str>,
+{
+    fn from(value: S) -> Self {
+        Self {
+            value: value.as_ref().to_string(),
+        }
+    }
+}
+
+/// Video Scan type enumeration
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum VideoScan {
+    Progressive,
+    InterLaced,
+    #[default]
+    Unknown,
+}
+
+/// Event Coding
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum ContentEncoding {
+    #[default]
+    Base64,
+}
+
+/// Switching Type type enumeration
+///
+/// ref : Table 7
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum SwitchingType {
+    #[default]
+    Media,
+    Bitstream,
+}
+
+/// Random Access Type type enumeration
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum RandomAccessType {
+    #[default]
+    Closed,
+    Open,
+    Gradual,
+}
+
+/// Producer Reference Time type enumeration
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum ProducerReferenceTimeType {
+    #[default]
+    Encoder,
+    Captured,
+    Application,
+}
+
+/// Rating Source type enumeration
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum Source {
+    #[default]
+    Content,
+    Statistics,
+    // @source_descriptionが必要
+    Other,
+}
+
+/// Operating Quality parameters applied media type enumeration
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum QualityMediaType {
+    Video,
+    Audio,
+    #[default]
+    Any,
+}
+
+/// Operating Bandwidth parameters applied media type enumeration
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum BandwidthMediaType {
+    Video,
+    Audio,
+    Any,
+    #[default]
+    All,
+}
+
+/// Preselection Order type enumeration
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "kebab-case")]
+pub enum PreselectionOrderType {
+    #[default]
+    Undefined,
+    TimeOrdered,
+    FullyOrdered,
+}
+
+/// Presentation type enumeration
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum PresentationType {
+    #[default]
+    Static,
+    Dynamic,
+}
+
+/// List of Profiles
+///
+/// base : xs:string
+#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
+pub struct ListOfProfiles {
+    value: Vec<Profile>,
+}
+
+impl fmt::Display for ListOfProfiles {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let joined = self
+            .value
+            .iter()
+            .map(|p| p.to_string())
+            .collect::<Vec<String>>()
+            .join(",");
+        write!(f, "{joined}")
+    }
+}
+
+impl FromStr for ListOfProfiles {
+    type Err = MpdError;
+
+    fn from_str(s: &str) -> Result<Self> {
+        let value = s
+            .split(",")
+            .map(|s| Profile::from_str(s))
+            .collect::<Result<Vec<Profile>>>()?;
+        Ok(Self { value })
+    }
+}
+
+impl From<Vec<Profile>> for ListOfProfiles {
+    fn from(value: Vec<Profile>) -> Self {
+        Self { value }
+    }
+}
+
+impl<T> From<&[T]> for ListOfProfiles
+where
+    T: Into<Profile> + Clone,
+{
+    fn from(value: &[T]) -> Self {
+        let value = value.iter().map(|t| t.clone().into()).collect();
+        Self { value }
+    }
+}
+
+/// Whitespace separated list
 #[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
 pub struct WhitespaceSeparatedList<T: fmt::Display + FromStr> {
     value: Vec<T>,
-}
-
-impl<S, T> From<Vec<S>> for WhitespaceSeparatedList<T>
-where
-    S: Into<T>,
-    T: fmt::Display + FromStr,
-{
-    fn from(value: Vec<S>) -> Self {
-        Self {
-            value: value.into_iter().map(|item| item.into()).collect(),
-        }
-    }
-}
-
-impl<S, T> From<&[S]> for WhitespaceSeparatedList<T>
-where
-    S: Into<T> + Clone,
-    T: fmt::Display + FromStr,
-{
-    fn from(value: &[S]) -> Self {
-        Self {
-            value: value.into_iter().map(|item| item.clone().into()).collect(),
-        }
-    }
 }
 
 impl<T: fmt::Display + FromStr> fmt::Display for WhitespaceSeparatedList<T> {
@@ -171,16 +916,7 @@ impl<T: fmt::Display + FromStr> FromStr for WhitespaceSeparatedList<T> {
     }
 }
 
-pub type UIntVector = WhitespaceSeparatedList<u32>;
-pub type StringVector = WhitespaceSeparatedList<String>;
-pub type ListOfFourCC = WhitespaceSeparatedList<FourCC>;
-
-#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
-pub struct CommaSeparatedList<T: fmt::Display + FromStr> {
-    value: Vec<T>,
-}
-
-impl<S, T> From<Vec<S>> for CommaSeparatedList<T>
+impl<S, T> From<Vec<S>> for WhitespaceSeparatedList<T>
 where
     S: Into<T>,
     T: fmt::Display + FromStr,
@@ -192,7 +928,7 @@ where
     }
 }
 
-impl<S, T> From<&[S]> for CommaSeparatedList<T>
+impl<S, T> From<&[S]> for WhitespaceSeparatedList<T>
 where
     S: Into<T> + Clone,
     T: fmt::Display + FromStr,
@@ -204,966 +940,47 @@ where
     }
 }
 
-impl<T: fmt::Display + FromStr> fmt::Display for CommaSeparatedList<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let joined = self
-            .value
-            .iter()
-            .map(|item| item.to_string())
-            .collect::<Vec<String>>()
-            .join(",");
-        write!(f, "{joined}")
+/// Whitespace separated list of unsigned integers
+pub type UIntVector = WhitespaceSeparatedList<u32>;
+/// Whitespace separated list of strings
+pub type StringVector = WhitespaceSeparatedList<String>;
+/// Whitespace separated list of 4CC
+pub type ListOfFourCC = WhitespaceSeparatedList<FourCC>;
+
+#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
+pub struct AudioSamplingRate(UIntVector);
+
+impl Deref for AudioSamplingRate {
+    type Target = UIntVector;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
-impl<T: fmt::Display + FromStr> FromStr for CommaSeparatedList<T> {
+impl fmt::Display for AudioSamplingRate {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0.to_string())
+    }
+}
+
+impl FromStr for AudioSamplingRate {
     type Err = MpdError;
 
     fn from_str(s: &str) -> Result<Self> {
         let items = s
-            .split(",")
-            .map(|item| {
-                T::from_str(item).map_err(|_| MpdError::InvalidData("Failed to parse from str"))
-            })
-            .collect::<Result<Vec<T>>>()?;
+            .split_whitespace()
+            .map(|s| s.parse::<u32>().map_err(|err| MpdError::ParseIntError(err)))
+            .collect::<Result<Vec<u32>>>()?;
 
-        Ok(Self { value: items })
-    }
-}
-
-pub type ListOfProfiles = CommaSeparatedList<Profile>;
-
-#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
-pub struct AspectRatio {
-    horizontal: u64,
-    vertical: u64,
-}
-
-impl From<(u64, u64)> for AspectRatio {
-    fn from(value: (u64, u64)) -> Self {
-        let (numer, denom) = value;
-        let divisor = gcd(numer, denom);
-
-        Self {
-            horizontal: numer / divisor,
-            vertical: denom / divisor,
-        }
-    }
-}
-
-impl fmt::Display for AspectRatio {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:{}", self.horizontal, self.vertical)
-    }
-}
-
-impl FromStr for AspectRatio {
-    type Err = MpdError;
-
-    fn from_str(s: &str) -> Result<Self> {
-        let parts: Vec<&str> = s.split(':').collect();
-
-        if parts.len() != 2 {
-            return Err(MpdError::InvalidData("Aspect ratio format `_:_`"));
-        }
-
-        let horizontal = parts[0].parse::<u64>()?;
-        let vertical = parts[1].parse::<u64>()?;
-
-        Ok(Self {
-            horizontal,
-            vertical,
-        })
-    }
-}
-
-#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
-pub struct FrameRate {
-    frame: u64,
-    denom: Option<u64>,
-}
-
-impl From<u64> for FrameRate {
-    fn from(value: u64) -> Self {
-        Self {
-            frame: value,
-            denom: None,
-        }
-    }
-}
-
-impl From<(u64, u64)> for FrameRate {
-    fn from(value: (u64, u64)) -> Self {
-        let denom = if value.1 == 0 { None } else { Some(value.1) };
-
-        Self {
-            frame: value.0,
-            denom,
-        }
-    }
-}
-
-impl fmt::Display for FrameRate {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}/{}", self.frame, self.denom.unwrap_or(1))
-    }
-}
-
-impl FromStr for FrameRate {
-    type Err = MpdError;
-
-    fn from_str(s: &str) -> Result<Self> {
-        if !PATTERN_FRAMERATE.is_match(s) {
-            return Err(MpdError::UnmatchedPattern);
-        }
-
-        let parts: Vec<&str> = s.split('/').collect();
-        let frame = parts[0].parse::<u64>()?;
-        let denom = if let Some(s) = parts.get(1) {
-            Some(s.parse::<u64>()?)
+        if items.len() > 0 && items.len() < 3 {
+            Ok(AudioSamplingRate(WhitespaceSeparatedList::from(items)))
         } else {
-            None
-        };
-
-        Ok(Self { frame, denom })
-    }
-}
-
-// 長さが１以上２以下である必要がある
-// 何かで制限をかける必要有
-pub type AudioSamplingRate = UIntVector;
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "lowercase")]
-pub enum VideoScan {
-    Progressive,
-    InterLaced,
-    #[default]
-    Unknown,
-}
-
-#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
-pub struct Codecs {
-    value: String,
-}
-
-impl fmt::Display for Codecs {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.value)
-    }
-}
-
-impl FromStr for Codecs {
-    type Err = MpdError;
-
-    fn from_str(s: &str) -> result::Result<Self, Self::Err> {
-        if PATTERN_FANCY.is_match(s) || PATTERN_SIMPLE.is_match(s) {
-            Ok(Codecs {
-                value: s.to_string(),
-            })
-        } else {
-            Err(MpdError::UnmatchedPattern)
+            Err(MpdError::InvalidData(
+                "The number of Audio sampling rate must be between 1 and 2",
+            ))
         }
     }
-}
-
-#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
-pub struct Tag {
-    value: String,
-}
-
-impl<S> From<S> for Tag
-where
-    S: AsRef<str>,
-{
-    fn from(value: S) -> Self {
-        Self {
-            value: value.as_ref().to_string(),
-        }
-    }
-}
-
-impl fmt::Display for Tag {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.value)
-    }
-}
-
-impl FromStr for Tag {
-    type Err = MpdError;
-
-    fn from_str(s: &str) -> result::Result<Self, Self::Err> {
-        Ok(Tag {
-            value: s.to_string(),
-        })
-    }
-}
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "lowercase")]
-pub enum ContentType {
-    Text,
-    Image,
-    Audio,
-    #[default]
-    Video,
-    Application,
-    Font,
-}
-/// SAP
-#[repr(u8)]
-#[derive(
-    Debug, Default, Clone, Copy, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash,
-)]
-pub enum StreamAccessPoint {
-    #[default]
-    /// Closed GoP random access point
-    ///
-    /// Tept = Tdec = Tsap = Tptf
-    Type1 = 1,
-    /// Closed GoP random access point
-    ///
-    /// Tept = Tdec = Tsap < Tptf
-    Type2 = 2,
-    /// Open GoP random access point
-    ///
-    /// Tept < Tdec = Tsap <= Tptf
-    Type3 = 3,
-    /// Gradual Decoding Refresh (GDR) random access point
-    ///
-    /// Tept <= Tptf < Tdec = Tsap
-    Type4 = 4,
-    /// Tept = Tdec < Tsap
-    Type5 = 5,
-    /// Tept < Tdec < Tsap
-    Type6 = 6,
-}
-
-impl TryFrom<u8> for StreamAccessPoint {
-    type Error = MpdError;
-
-    fn try_from(value: u8) -> result::Result<Self, Self::Error> {
-        match value {
-            1 => Ok(Self::Type1),
-            2 => Ok(Self::Type2),
-            3 => Ok(Self::Type3),
-            4 => Ok(Self::Type4),
-            5 => Ok(Self::Type5),
-            6 => Ok(Self::Type6),
-            _ => Err(MpdError::InvalidData("SAP values must be 1 to 6")),
-        }
-    }
-}
-
-impl fmt::Display for StreamAccessPoint {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", *self as u8)
-    }
-}
-
-impl FromStr for StreamAccessPoint {
-    type Err = MpdError;
-
-    fn from_str(s: &str) -> Result<Self> {
-        Ok(StreamAccessPoint::try_from(s.parse::<u8>()?)?)
-    }
-}
-
-#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq)]
-pub struct XsDuration {
-    value: iso8601::Duration,
-}
-
-impl fmt::Display for XsDuration {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.value.to_string())
-    }
-}
-
-impl FromStr for XsDuration {
-    type Err = MpdError;
-
-    fn from_str(s: &str) -> Result<Self> {
-        let value = s
-            .parse::<iso8601::Duration>()
-            .map_err(|_| MpdError::InvalidData("Failed to parse xs:duration"))?;
-
-        Ok(Self { value })
-    }
-}
-
-#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
-pub struct XsInteger {
-    value: BigInt,
-}
-
-impl<T> From<T> for XsInteger
-where
-    T: Into<BigInt>,
-{
-    fn from(value: T) -> Self {
-        Self {
-            value: value.into(),
-        }
-    }
-}
-
-impl fmt::Display for XsInteger {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.value.to_string())
-    }
-}
-
-impl FromStr for XsInteger {
-    type Err = MpdError;
-
-    fn from_str(s: &str) -> result::Result<Self, Self::Err> {
-        let value = s
-            .parse::<BigInt>()
-            .map_err(|_| MpdError::InvalidData("Failed to parse xs:integer"))?;
-
-        Ok(Self { value })
-    }
-}
-
-#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
-pub struct XsId {
-    value: String,
-}
-
-impl fmt::Display for XsId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.value)
-    }
-}
-
-impl FromStr for XsId {
-    type Err = MpdError;
-
-    fn from_str(s: &str) -> result::Result<Self, Self::Err> {
-        if !PATTERN_ID.is_match(s) {
-            return Err(MpdError::UnmatchedPattern);
-        }
-
-        Ok(Self {
-            value: s.to_string(),
-        })
-    }
-}
-
-#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
-pub struct XsLanguage {
-    value: String,
-}
-
-impl fmt::Display for XsLanguage {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.value)
-    }
-}
-
-impl FromStr for XsLanguage {
-    type Err = MpdError;
-
-    fn from_str(s: &str) -> result::Result<Self, Self::Err> {
-        if !PATTERN_LANG.is_match(s) {
-            return Err(MpdError::UnmatchedPattern);
-        }
-
-        Ok(Self {
-            value: s.to_string(),
-        })
-    }
-}
-
-#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
-pub struct XsDateTime {
-    value: DateTime<Utc>,
-}
-
-impl fmt::Display for XsDateTime {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            self.value
-                .to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true) // 小数点以下の扱いをAutoにしているがこれで問題ないか
-        )
-    }
-}
-
-impl FromStr for XsDateTime {
-    type Err = MpdError;
-
-    fn from_str(s: &str) -> Result<Self> {
-        let value = DateTime::parse_from_rfc3339(s)?.to_utc();
-        Ok(Self { value })
-    }
-}
-
-#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
-pub struct SingleRFC7233Range {
-    pub start: Option<u64>,
-    pub end: Option<u64>,
-}
-
-impl From<(Option<u64>, Option<u64>)> for SingleRFC7233Range {
-    fn from(value: (Option<u64>, Option<u64>)) -> Self {
-        Self {
-            start: value.0,
-            end: value.1,
-        }
-    }
-}
-
-impl fmt::Display for SingleRFC7233Range {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let start_str = self.start.map_or("".to_string(), |s| s.to_string());
-        let end_str = self.end.map_or("".to_string(), |e| e.to_string());
-        let s = if self.end.is_some() || !start_str.is_empty() {
-            format!("{}-{}", start_str, end_str)
-        } else {
-            "".to_string()
-        };
-
-        write!(f, "{s}")
-    }
-}
-
-impl FromStr for SingleRFC7233Range {
-    type Err = MpdError;
-
-    fn from_str(s: &str) -> Result<Self> {
-        if let Some(caps) = PATTERN_RFC7233_RANGE.captures(&s) {
-            let start = caps.get(1).and_then(|m| {
-                if m.as_str().is_empty() {
-                    None
-                } else {
-                    m.as_str().parse::<u64>().ok()
-                }
-            });
-            let end = caps.get(3).and_then(|m| {
-                if m.as_str().is_empty() {
-                    None
-                } else {
-                    m.as_str().parse::<u64>().ok()
-                }
-            });
-            Ok(SingleRFC7233Range { start, end })
-        } else {
-            Err(MpdError::UnmatchedPattern)
-        }
-    }
-}
-
-pub type AnyUri = String;
-
-/// Table 32
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct Descriptor {
-    #[serde(rename = "@schemeIdUri")]
-    scheme_id_uri: AnyUri,
-    #[serde(rename = "@value", skip_serializing_if = "Option::is_none")]
-    value: Option<String>,
-    #[serde(rename = "@id", skip_serializing_if = "Option::is_none")]
-    id: Option<String>,
-}
-
-impl From<(String, (Option<String>, Option<String>))> for Descriptor {
-    fn from(value: (String, (Option<String>, Option<String>))) -> Self {
-        Self {
-            scheme_id_uri: value.0,
-            value: value.1 .0,
-            id: value.1 .1,
-        }
-    }
-}
-
-/// Table 33
-///
-/// refとref_idはどちらか一方しか存在できない
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct ContentProtection {
-    #[serde(flatten)]
-    descriptor: Descriptor,
-    #[serde(rename = "@ref")]
-    r#ref: Option<XsId>,
-    #[serde(rename = "@refId")]
-    ref_id: Option<XsId>,
-    #[serde(rename = "@robustness")]
-    robustness: Option<NoWhitespace>,
-}
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "lowercase")]
-pub enum ContentEncoding {
-    #[default]
-    Base64,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct Event {
-    #[serde(rename = "@presentationTime")]
-    presentation_time: Option<u64>,
-    #[serde(rename = "@duration")]
-    duration: Option<u64>,
-    #[serde(rename = "@id")]
-    id: Option<u32>,
-    #[serde(rename = "@contentEncoding")]
-    content_encording: Option<ContentEncoding>,
-    #[serde(rename = "@messageData")]
-    message_data: Option<String>,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct EventStream {
-    #[serde(rename = "@xlink:href")]
-    href: Option<String>,
-    #[serde(rename = "@xlink:actuate")]
-    actuate: Option<XLinkActure>,
-    #[serde(rename = "@schemeIdUri")]
-    scheme_id_uri: AnyUri,
-    #[serde(rename = "@value")]
-    value: Option<String>,
-    #[serde(rename = "@timescale")]
-    timescale: Option<u32>,
-    #[serde(rename = "@presentationTimeOffset")]
-    presentation_time_offset: Option<u64>,
-    #[serde(rename = "Event", skip_serializing_if = "Vec::is_empty")]
-    events: Vec<Event>,
-}
-
-///Table 7
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "lowercase")]
-pub enum SwitchingType {
-    #[default]
-    Media,
-    Bitstream,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct Switching {
-    #[serde(rename = "@interval")]
-    interval: u32,
-    #[serde(rename = "@type")]
-    r#type: Option<SwitchingType>,
-}
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "lowercase")]
-pub enum RandomAccessType {
-    #[default]
-    Closed,
-    Open,
-    Gradual,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct RandomAccess {
-    #[serde(rename = "@interval")]
-    interval: u32,
-    #[serde(rename = "@type")]
-    r#type: Option<RandomAccessType>,
-    #[serde(rename = "@minBufferTime")]
-    min_buffer_time: Option<XsDuration>,
-    #[serde(rename = "@bandwidth")]
-    bandwidth: Option<u32>,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct Label {
-    #[serde(rename = "@id")]
-    id: Option<u32>,
-    #[serde(rename = "@lang")]
-    lang: Option<XsLanguage>,
-}
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "lowercase")]
-pub enum ProducerReferenceTimeType {
-    #[default]
-    Encoder,
-    Captured,
-    Application,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct ProducerReferenceTime {
-    #[serde(rename = "@id")]
-    id: u32,
-    #[serde(rename = "@inband")]
-    inband: Option<bool>,
-    #[serde(rename = "@type")]
-    r#type: Option<ProducerReferenceTimeType>,
-    /// type: applicationの時は必須、それ以外はあってはならない
-    #[serde(rename = "@applicationScheme")]
-    application_scheme: Option<String>,
-    #[serde(rename = "@wallClockTime")]
-    wall_clock_time: String,
-    #[serde(rename = "@presentationTime")]
-    presentation_time: u64,
-    #[serde(rename = "UTCTiming")]
-    utc_timing: Option<Descriptor>,
-}
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "lowercase")]
-pub enum Source {
-    #[default]
-    Content,
-    Statistics,
-    // @source_descriptionが必要
-    Other,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct PopularityRate {
-    // 1 ~ 100の範囲指定
-    #[serde(rename = "@popularityRate")]
-    popularity_rate: u32,
-    #[serde(rename = "@start")]
-    start: Option<u64>,
-    #[serde(rename = "@r")]
-    repeat_count: Option<i32>,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct ContentPopularityRate {
-    #[serde(rename = "@source")]
-    source: Source,
-    #[serde(rename = "@source_description")]
-    source_description: Option<String>,
-    #[serde(rename = "PR")]
-    popularity_rates: Vec<PopularityRate>,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
-pub struct Resync {
-    #[serde(rename = "@type")]
-    r#type: Option<StreamAccessPoint>,
-    #[serde(rename = "@dT")]
-    diff_time: Option<u32>,
-    #[serde(rename = "@dImax")]
-    diff_index_max: Option<f32>,
-    #[serde(rename = "@dImin")]
-    diff_index_min: Option<f32>,
-    #[serde(rename = "@marker")]
-    marker: Option<bool>,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
-pub struct BaseURL {
-    #[serde(rename = "$text")]
-    base: AnyUri,
-    #[serde(rename = "@serviceLocation")]
-    service_location: Option<String>,
-    #[serde(rename = "@byteRange")]
-    byte_range: Option<String>,
-    #[serde(rename = "@availabilityTimeOffset")]
-    availability_time_offset: Option<f64>,
-    #[serde(rename = "@availabilityTimeComplete")]
-    availability_time_complete: Option<bool>,
-    #[serde(rename = "@timeShiftBufferDepth")]
-    time_shift_buffer_depth: Option<XsDuration>,
-    #[serde(rename = "@rangeAccess")]
-    range_access: Option<bool>,
-}
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
-pub struct ModelPair {
-    #[serde(rename = "@bufferTime")]
-    buffer_time: XsDuration,
-    #[serde(rename = "@bandwidth")]
-    bandwidth: u32,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
-pub struct ExtendedBandwidth {
-    #[serde(rename = "@vbr")]
-    vbr: Option<bool>,
-    #[serde(rename = "ModelPair")]
-    model_pair: Vec<ModelPair>,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct ContentComponent {
-    #[serde(rename = "@id")]
-    id: Option<u32>,
-    #[serde(rename = "@lang")]
-    lang: Option<XsLanguage>,
-    #[serde(rename = "@contentType")]
-    content_type: Option<ContentType>,
-    #[serde(rename = "@par")]
-    par: Option<AspectRatio>,
-    #[serde(rename = "@tag")]
-    tag: Option<Tag>,
-    #[serde(rename = "Accessibility")]
-    accessibility: Option<Vec<Descriptor>>,
-    #[serde(rename = "Role")]
-    role: Option<Vec<Descriptor>>,
-    #[serde(rename = "Rating")]
-    rating: Option<Vec<Descriptor>>,
-    #[serde(rename = "Viewpoint")]
-    viewpoint: Option<Vec<Descriptor>>,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct Latency {
-    #[serde(rename = "@referenceId")]
-    reference_id: Option<i32>,
-    #[serde(rename = "@target")]
-    target_latency: Option<i32>,
-    #[serde(rename = "@max")]
-    max_latency: Option<i32>,
-    #[serde(rename = "@min")]
-    min_latency: Option<i32>,
-}
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
-pub struct PlaybackRate {
-    #[serde(rename = "@max")]
-    max_playback_rate: Option<f32>, // Real
-    #[serde(rename = "@min")]
-    min_playback_rate: Option<f32>, // Real
-}
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "lowercase")]
-pub enum QualityMediaType {
-    Video,
-    Audio,
-    #[default]
-    Any,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct OperatingQuality {
-    #[serde(rename = "@mediaType")]
-    media_type: Option<QualityMediaType>,
-    #[serde(rename = "@min")]
-    min_quality_ranking: Option<i32>,
-    #[serde(rename = "@max")]
-    max_quality_ranking: Option<i32>,
-    #[serde(rename = "@target")]
-    target_quality_ranking: Option<i32>,
-    #[serde(rename = "@type")]
-    quality_ranking_type: Option<AnyUri>,
-    #[serde(rename = "@maxDifference")]
-    max_quality_difference: Option<i32>,
-}
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "lowercase")]
-pub enum BandwidthMediaType {
-    Video,
-    Audio,
-    Any,
-    #[default]
-    All,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct OperatingBandwidth {
-    #[serde(rename = "@mediaType")]
-    media_type: Option<BandwidthMediaType>,
-    #[serde(rename = "@min")]
-    min_bandwidth: Option<i32>,
-    #[serde(rename = "@max")]
-    max_bandwidth: Option<i32>,
-    #[serde(rename = "@target")]
-    target_bandwidth: Option<i32>,
-}
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
-pub struct ServiceDescription {
-    #[serde(rename = "@id")]
-    id: u32,
-    #[serde(rename = "Scope", skip_serializing_if = "Vec::is_empty")]
-    scope: Vec<Descriptor>,
-    #[serde(rename = "Latency", skip_serializing_if = "Vec::is_empty")]
-    latency: Vec<Latency>,
-    #[serde(rename = "PlaybackRate", skip_serializing_if = "Vec::is_empty")]
-    playback_rate: Vec<PlaybackRate>,
-    #[serde(rename = "OperatingQuality", skip_serializing_if = "Vec::is_empty")]
-    operating_quality: Vec<OperatingQuality>,
-    #[serde(rename = "OperatingBandwidth", skip_serializing_if = "Vec::is_empty")]
-    operating_bandwidth: Vec<OperatingBandwidth>,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct Subset {
-    #[serde(rename = "@contains")]
-    contains: UIntVector,
-    #[serde(rename = "@id")]
-    id: Option<String>,
-}
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "kebab-case")]
-pub enum PreselectionOrderType {
-    #[default]
-    Undefined,
-    TimeOrdered,
-    FullyOrdered,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
-pub struct Preselection {
-    #[serde(rename = "@id")]
-    id: Option<NoWhitespace>,
-    #[serde(rename = "@preselectionComponents")]
-    preselection_components: Vec<StringVector>,
-    #[serde(rename = "@lang")]
-    lang: Option<XsLanguage>,
-    #[serde(rename = "@order")]
-    order: Option<PreselectionOrderType>,
-    #[serde(rename = "Accessibility")]
-    accessibility: Option<Vec<Descriptor>>,
-    #[serde(rename = "Role")]
-    role: Option<Vec<Descriptor>>,
-    #[serde(rename = "Rating")]
-    rating: Option<Vec<Descriptor>>,
-    #[serde(rename = "Viewpoint")]
-    viewpoint: Option<Vec<Descriptor>>,
-    // common attributes elements
-    #[serde(rename = "@profiles")]
-    profiles: Option<ListOfProfiles>,
-    #[serde(rename = "@width")]
-    width: Option<u32>,
-    #[serde(rename = "@height")]
-    height: Option<u32>,
-    #[serde(rename = "@sar")]
-    sar: Option<AspectRatio>,
-    #[serde(rename = "@frameRate")]
-    framerate: Option<FrameRate>,
-    #[serde(rename = "@audioSamplingRate")]
-    audio_sampling_rate: Option<AudioSamplingRate>,
-    #[serde(rename = "@mimeType")]
-    mime_type: Option<String>,
-    #[serde(rename = "@segmentProfiles")]
-    segment_profiles: Option<ListOfFourCC>,
-    #[serde(rename = "@codecs")]
-    codecs: Option<Codecs>,
-    #[serde(rename = "@containerProfiles")]
-    container_profiles: Option<ListOfFourCC>,
-    #[serde(rename = "@maximumSAPPeriod")]
-    maximum_sap_period: Option<f64>,
-    #[serde(rename = "@startWithSAP")]
-    start_with_sap: Option<StreamAccessPoint>,
-    #[serde(rename = "@maxPlayoutRate")]
-    max_playout_rate: Option<f64>,
-    #[serde(rename = "@codingDependency")]
-    coding_dependency: Option<bool>,
-    #[serde(rename = "@scanType")]
-    scan_type: Option<VideoScan>,
-    #[serde(rename = "@selectionPriority")]
-    selection_priority: Option<u32>,
-    #[serde(rename = "@tag")]
-    tag: Option<Tag>,
-    #[serde(rename = "FramePacking")]
-    frame_packing: Option<Vec<Descriptor>>,
-    #[serde(rename = "AudioChannelConfiguration")]
-    audio_channel_configuration: Option<Vec<Descriptor>>,
-    #[serde(rename = "ContentProtection")]
-    content_protection: Option<Vec<ContentProtection>>,
-    #[serde(rename = "OutputProtection")]
-    output_protection: Option<Vec<Descriptor>>,
-    #[serde(rename = "EssentialProperty")]
-    essential_property: Option<Vec<Descriptor>>,
-    #[serde(rename = "SupplementalProperty")]
-    supplemental_property: Option<Vec<Descriptor>>,
-    #[serde(rename = "InbandEventStream")]
-    inband_event_stream: Option<Vec<EventStream>>,
-    #[serde(rename = "Switching")]
-    switching: Option<Vec<Switching>>,
-    #[serde(rename = "RandomAccess")]
-    random_access: Option<Vec<RandomAccess>>,
-    #[serde(rename = "GroupLabel")]
-    group_lavel: Option<Vec<Label>>,
-    #[serde(rename = "Label")]
-    lavel: Option<Vec<Label>>,
-    #[serde(rename = "ProducerReferenceTime")]
-    producer_reference_time: Option<Vec<ProducerReferenceTime>>,
-    #[serde(rename = "ContentPopularityRate")]
-    content_popularity_rate: Option<Vec<ContentPopularityRate>>,
-    #[serde(rename = "Resync")]
-    resync: Option<Vec<Resync>>,
-    // common attributes elements
-}
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "lowercase")]
-pub enum PresentationType {
-    #[default]
-    Static,
-    Dynamic,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct Url {
-    #[serde(rename = "@sourceURL")]
-    pub source_url: Option<AnyUri>,
-    #[serde(rename = "@range")]
-    pub range: Option<SingleRFC7233Range>,
-}
-
-impl From<(Option<String>, (Option<u64>, Option<u64>))> for Url {
-    fn from(value: (Option<String>, (Option<u64>, Option<u64>))) -> Self {
-        Self {
-            source_url: value.0.and_then(|s| Some(s)),
-            range: Some(SingleRFC7233Range::from(value.1)),
-        }
-    }
-}
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename = "FCS")]
-pub struct Fcs {
-    #[serde(rename = "@t")]
-    pub start_time: u64,
-    #[serde(rename = "@d", skip_serializing_if = "Option::is_none")]
-    pub duration: Option<u64>,
-}
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename = "FailoverContent")]
-pub struct FailoverContent {
-    #[serde(rename = "@valid")]
-    pub valid: Option<bool>,
-    #[serde(rename = "FCS", skip_serializing_if = "Vec::is_empty")]
-    pub fcs_list: Vec<Fcs>,
-}
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename = "SegmentURL")]
-pub struct SegmentUrl {
-    #[serde(rename = "@media")]
-    media: Option<AnyUri>,
-    #[serde(rename = "@mediaRange")]
-    media_range: Option<SingleRFC7233Range>,
-    #[serde(rename = "@index")]
-    index: Option<AnyUri>,
-    #[serde(rename = "@indexRange")]
-    index_range: Option<SingleRFC7233Range>,
 }
 
 #[cfg(test)]
@@ -1171,324 +988,380 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_types_xs_integer_serde() {
-        let value = 10000;
-        let xs_integer = XsInteger::from(value);
-        let ser = serde_plain::to_string(&xs_integer).unwrap();
-
-        assert!(ser == value.to_string());
-
-        let der = serde_plain::from_str::<XsInteger>(&ser);
-
-        assert!(der.is_ok_and(|val| val == xs_integer));
+    fn test_types_xs_integer_valid() {
+        assert!(XsInteger::from_str("122").is_ok());
+        assert!(XsInteger::from_str("00122").is_ok());
+        assert!(XsInteger::from_str("0").is_ok());
+        assert!(XsInteger::from_str("-3").is_ok());
+        assert!(XsInteger::from_str("+3").is_ok());
     }
 
     #[test]
-    fn test_types_xs_duration_serde() {
-        let value = "foo";
-        let ret = XsDuration::from_str(value);
-        assert!(ret.is_err());
-
-        let value = "PT3H11M53S";
-        let xs_duration = XsDuration::from_str(value).unwrap();
-        let ser = serde_plain::to_string(&xs_duration).unwrap();
-
-        assert!(&ser == value);
-
-        let der = serde_plain::from_str::<XsDuration>(&ser);
-
-        assert!(der.is_ok_and(|val| val == xs_duration));
+    fn test_types_xs_integer_invalid() {
+        assert!(XsInteger::from_str("3.").is_err());
+        assert!(XsInteger::from_str("3.0").is_err());
+        assert!(XsInteger::from_str("").is_err());
     }
 
     #[test]
     fn test_types_xs_id_valid() {
-        let input = "valid_ID-123";
-        let id = XsId::from_str(&input).unwrap();
-        let output = id.to_string();
+        assert!(XsId::from_str("myElement").is_ok());
+        assert!(XsId::from_str("_my.Element").is_ok());
+        assert!(XsId::from_str("my-Element").is_ok());
 
-        assert_eq!(input, output.as_str());
+        // xs:token
+        assert_eq!(
+            XsId::from_str("  _my.Element").unwrap().to_string(),
+            "_my.Element".to_string()
+        );
     }
 
     #[test]
     fn test_types_xs_id_invalid() {
-        let input = "123_invalid";
-        let ret = XsId::from_str(&input);
+        assert!(XsId::from_str("pre:myElement").is_err());
+        assert!(XsId::from_str("-myelement").is_err());
+        assert!(XsId::from_str("").is_err());
+    }
 
-        assert!(ret.is_err());
+    #[test]
+    fn test_types_xs_lang_valid() {
+        assert!(XsLanguage::from_str("en").is_ok());
+        assert!(XsLanguage::from_str("en-GB").is_ok());
+        assert!(XsLanguage::from_str("ja").is_ok());
+        assert!(XsLanguage::from_str("i-navajo").is_ok());
+        assert!(XsLanguage::from_str("x-Newspeak").is_ok());
+        assert!(XsLanguage::from_str("any-value-with-short-partsen").is_ok());
+    }
+
+    #[test]
+    fn test_types_xs_lang_invalid() {
+        assert!(XsLanguage::from_str("longerThan8").is_err());
+        assert!(XsLanguage::from_str("").is_err());
+    }
+
+    #[test]
+    fn test_types_xs_datetime_valid() {
+        assert!(XsDateTime::from_str("2004-04-12T13:20:00").is_ok());
+        assert!(XsDateTime::from_str("2004-04-12T13:20:15.5").is_ok());
+        assert!(XsDateTime::from_str("2004-04-12T13:20:00-05:00").is_ok());
+        assert!(XsDateTime::from_str("2004-04-12T13:20:00Z").is_ok());
+    }
+
+    #[test]
+    fn test_types_xs_datetime_invalid() {
+        assert!(XsDateTime::from_str("2004-04-12T13:00").is_err());
+        assert!(XsDateTime::from_str("2004-04-1213:20:00").is_err());
+        assert!(XsDateTime::from_str("99-04-12T13:00").is_err());
+        assert!(XsDateTime::from_str("2004-04-12").is_err());
+        assert!(XsDateTime::from_str("").is_err());
     }
 
     #[test]
     fn test_types_xs_datetime_parse() {
-        // let input = "2024-10-11T00:56:12.173379611Z";
-        let input = "2014-10-17T17:17:05Z";
-        let datetime = XsDateTime::from_str(&input).unwrap();
-        println!("{:?}", datetime);
+        let datetime = XsDateTime::from_str("2004-04-12T13:20:00-05:00").unwrap();
+        assert_eq!(&datetime.to_string(), "2004-04-12T18:20:00Z");
 
-        let output = datetime.to_string();
-        assert_eq!(input, output.as_str());
+        let datetime = XsDateTime::from_str("2004-04-12T13:20:15.5").unwrap();
+        assert_eq!(&datetime.to_string(), "2004-04-12T04:20:15.500Z");
     }
 
     #[test]
-    fn test_types_aspect_ratio() {
-        let value = "16:9";
-        let ratio_parse = AspectRatio::from_str(&value).unwrap();
-        let ratio = AspectRatio::from((1920, 1080));
-
-        assert_eq!(ratio_parse, ratio);
-
-        let ser = ratio.to_string();
-
-        assert_eq!(value, &ser);
+    fn test_types_xs_duration_valid() {
+        assert!(XsDuration::from_str("P2Y6M5DT12H35M30S").is_ok());
+        assert!(XsDuration::from_str("P1DT2H").is_ok());
+        assert!(XsDuration::from_str("P20M").is_ok());
+        assert!(XsDuration::from_str("PT20M").is_ok());
+        assert!(XsDuration::from_str("P0Y20M0D").is_ok());
+        assert!(XsDuration::from_str("P0Y").is_ok());
+        assert!(XsDuration::from_str("-P60D").is_ok());
+        assert!(XsDuration::from_str("PT1M30.5S").is_ok());
     }
 
     #[test]
-    fn test_types_frame_rate() {
-        let value = "30";
-        let framerate = FrameRate::from_str(&value).unwrap();
-
-        assert_eq!(framerate.frame, 30);
-        assert_eq!(framerate.denom, None);
-
-        let ser = framerate.to_string();
-
-        assert_eq!(ser, "30/1".to_string());
+    fn test_types_xs_duration_invalid() {
+        assert!(XsDuration::from_str("P-20M").is_err());
+        assert!(XsDuration::from_str("P20MT").is_err());
+        assert!(XsDuration::from_str("P1YM5D").is_err());
+        assert!(XsDuration::from_str("P15.5Y").is_err());
+        assert!(XsDuration::from_str("P1D2H").is_err());
+        assert!(XsDuration::from_str("1Y2M").is_err());
+        assert!(XsDuration::from_str("P2M1Y").is_err());
+        assert!(XsDuration::from_str("P").is_err());
+        assert!(XsDuration::from_str("PT15.S").is_err());
+        assert!(XsDuration::from_str("").is_err());
     }
 
     #[test]
-    fn test_types_stream_access_point_serde() {
-        let ret = StreamAccessPoint::from_str("0");
-        assert!(ret.is_err());
+    fn test_types_xs_duration_parse() {
+        let duration = XsDuration::from_str("P2Y6M5DT12H35M30S").unwrap();
+        assert_eq!(&duration.to_string(), "PT21972H35M30S");
 
-        let value = "1";
-        let sap = StreamAccessPoint::from_str(&value).unwrap();
-        assert_eq!(sap, StreamAccessPoint::Type1);
+        let duration = XsDuration::from_str("P20M").unwrap();
+        assert_eq!(&duration.to_string(), "PT14400H0M0S");
 
-        let ser = sap.to_string();
-        assert_eq!(value, ser.as_str());
+        let duration = XsDuration::from_str("PT20M").unwrap();
+        assert_eq!(&duration.to_string(), "PT0H20M0S");
+
+        let duration = XsDuration::from_str("PT1M30.5S").unwrap();
+        assert_eq!(&duration.to_string(), "PT0H1M30.5S");
+
+        let duration = XsDuration::from_str("-P2DT1M30.123456789S").unwrap();
+        assert_eq!(&duration.to_string(), "-PT48H1M30.123456789S");
     }
 
     #[test]
-    fn test_types_fourcc() {
-        let value = "TSET MJPG H264 VP80";
-        let list = ListOfFourCC::from_str(&value).unwrap();
-
-        assert_eq!(
-            list.value,
-            vec![
-                FourCC::from(0x54534554),
-                FourCC::from(0x4D4A5047),
-                FourCC::from(0x48323634),
-                FourCC::from(0x56503830)
-            ]
-        );
-
-        let ser = list.to_string();
-
-        assert_eq!(value, ser.as_str());
+    fn test_types_fourcc_valid() {
+        assert!(FourCC::from_str("MPEG").is_ok());
     }
 
     #[test]
-    fn test_types_string_vector() {
-        let value = "Hello World !";
-        let list = StringVector::from_str(&value).unwrap();
-
-        assert_eq!(list.value, vec!["Hello", "World", "!"]);
-
-        let ser = list.to_string();
-
-        assert_eq!(value, ser.as_str());
+    fn test_types_fourcc_invalid() {
+        assert!(FourCC::from_str("MPEG2").is_err());
+        assert!(FourCC::from_str(" mpeg").is_err());
+        assert!(FourCC::from_str("a").is_err());
     }
 
     #[test]
-    fn test_types_list_of_profiles_serde() {
-        let value = "urn:mpeg:dash:profile:isoff-live:2011,urn:mpeg:dash:profile:cmaf:2019,https://example.com/profile/test";
-        let list = ListOfProfiles::from_str(&value).unwrap();
-
-        assert_eq!(
-            list.value,
-            vec![
-                Profile::IsoLive,
-                Profile::Cmaf,
-                Profile::Other("https://example.com/profile/test".to_string())
-            ]
-        );
-
-        let ser = list.to_string();
-
-        assert_eq!(value, ser.as_str());
+    fn test_types_ratio_valid() {
+        assert!(Ratio::from_str("16:9").is_ok());
+        assert!(Ratio::from_str("1920:1080").is_ok());
+        assert!(Ratio::from_str("0:1").is_ok());
+        assert!(Ratio::from_str("0:0").is_ok());
     }
 
     #[test]
-    fn test_types_codecs_fancy_valid() {
-        let input = "avc1.42E01E'jp'mp4a.40.2;channels=2";
-        let codecs = Codecs::from_str(&input).unwrap();
-
-        let output = codecs.to_string();
-
-        assert_eq!(input, output.as_str());
+    fn test_types_ratio_invalid() {
+        assert!(Ratio::from_str("16:").is_err());
+        assert!(Ratio::from_str(":9").is_err());
+        assert!(Ratio::from_str(":").is_err());
+        assert!(Ratio::from_str("").is_err());
     }
 
     #[test]
-    fn test_types_codecs_fancy_invalid() {
-        let input = "avc1.42E01Ejpmp4a.40.2;channels=2";
-        let ret = Codecs::from_str(&input);
+    fn test_types_ratio_parse() {
+        let input = "16:9";
+        let ratio = Ratio::from_str(&input).unwrap();
+        assert_eq!(&ratio.to_string(), input);
 
-        assert!(ret.is_err());
+        let input = "0:0";
+        let ratio = Ratio::from_str(&input).unwrap();
+        assert_eq!(&ratio.to_string(), input);
     }
 
     #[test]
-    fn test_types_codecs_simp_valid() {
+    fn test_types_framerate_valid() {
+        assert!(FrameRate::from_str("30/1").is_ok());
+        assert!(FrameRate::from_str("30").is_ok());
+        assert!(FrameRate::from_str("30000/1001").is_ok());
+        assert!(FrameRate::from_str("0/1").is_ok());
+    }
+
+    #[test]
+    fn test_types_framerate_invalid() {
+        assert!(FrameRate::from_str("30/0").is_err());
+        assert!(FrameRate::from_str("29.97/1.0").is_err());
+        assert!(FrameRate::from_str("30/").is_err());
+        assert!(FrameRate::from_str("/1").is_err());
+        assert!(FrameRate::from_str("/").is_err());
+        assert!(FrameRate::from_str("").is_err());
+    }
+
+    #[test]
+    fn test_types_framerate_parse() {
+        let input = "30/1";
+        let framerate = FrameRate::from_str(&input).unwrap();
+        assert_eq!(&framerate.to_string(), input);
+
+        let input = "60";
+        let framerate = FrameRate::from_str(&input).unwrap();
+        assert_eq!(&framerate.to_string(), "60/1");
+    }
+
+    #[test]
+    fn test_types_no_whitespace_valid() {
+        assert!(NoWhitespace::from_str("HelloWorld").is_ok());
+        assert!(NoWhitespace::from_str("1234567890!?/\\@#_,.%$\'\"").is_ok());
+    }
+
+    #[test]
+    fn test_types_no_whitespace_invalid() {
+        assert!(NoWhitespace::from_str("Hello World").is_err());
+        assert!(NoWhitespace::from_str("Hello\nWorld").is_err());
+        assert!(NoWhitespace::from_str("Hello\r\nWorld").is_err());
+        assert!(NoWhitespace::from_str("Hello\tWorld").is_err());
+    }
+
+    #[test]
+    fn test_types_no_whitespace_parse() {
+        let input = "1234567890!?/\\@#_,.%$\'\"";
+        let no_whitespace = NoWhitespace::from_str("1234567890!?/\\@#_,.%$\'\"").unwrap();
+        assert_eq!(&no_whitespace.to_string(), input);
+    }
+
+    #[test]
+    fn test_types_single_byte_range_valid() {
+        assert!(SingleByteRange::from_str("0-499").is_ok());
+        assert!(SingleByteRange::from_str("500-999").is_ok());
+        assert!(SingleByteRange::from_str("0-").is_ok());
+    }
+
+    #[test]
+    fn test_types_single_byte_range_invalid() {
+        assert!(SingleByteRange::from_str("-499").is_err());
+        assert!(SingleByteRange::from_str("0-499,500-999").is_err());
+        assert!(SingleByteRange::from_str("0-499,-1").is_err());
+        assert!(SingleByteRange::from_str("-").is_err());
+        assert!(SingleByteRange::from_str("").is_err());
+    }
+
+    #[test]
+    fn test_types_single_byte_range_parse() {
+        let input = "0-499";
+        let range = SingleByteRange::from_str(&input).unwrap();
+        assert_eq!(&range.to_string(), input);
+
+        let input = "500-";
+        let range = SingleByteRange::from_str(&input).unwrap();
+        assert_eq!(&range.to_string(), input);
+    }
+
+    #[test]
+    fn test_types_fancy_list_valid() {
+        assert!(FancyList::from_str("UTF-8'en'avc1.42E01E,mp4a.40.2").is_ok());
+        assert!(FancyList::from_str("UTF-8'en'avc1.42E01E, mp4a.40.2").is_ok());
+        assert!(FancyList::from_str("avc1.42E01E").is_ok());
+        assert!(FancyList::from_str("avc1").is_ok());
+    }
+
+    #[test]
+    fn test_types_fancy_list_invalid() {
+        assert!(FancyList::from_str("UTF-8'en'").is_err());
+        assert!(FancyList::from_str("'en'avc1.42E01E,mp4a.40.2").is_err());
+        assert!(FancyList::from_str("avc1.42E01E;mp4a.40.2").is_err());
+        assert!(FancyList::from_str("avc1.42E01E,").is_err());
+        assert!(FancyList::from_str("UTF-8\"en\"avc1.42E01E").is_err());
+        assert!(FancyList::from_str("").is_err());
+    }
+
+    #[test]
+    fn test_types_fancy_list_parse() {
+        let input = "UTF-8'en'avc1.42E01E,mp4a.40.2";
+        let fancy_list = FancyList::from_str(&input).unwrap();
+        assert_eq!(&fancy_list.to_string(), input);
+
         let input = "avc1.42E01E,mp4a.40.2";
+        let fancy_list = FancyList::from_str(&input).unwrap();
+        assert_eq!(&fancy_list.to_string(), input);
+    }
+
+    #[test]
+    fn test_types_simp_list_valid() {
+        assert!(SimpList::from_str("avc1").is_ok());
+        assert!(SimpList::from_str("avc1,mp4a").is_ok());
+        assert!(SimpList::from_str("avc1, mp4a").is_ok());
+    }
+
+    #[test]
+    fn test_types_simp_list_invalid() {
+        assert!(SimpList::from_str("avc1.42E01E").is_err());
+        assert!(SimpList::from_str("avc1;mp4a").is_err());
+        assert!(SimpList::from_str("avc1,").is_err());
+        assert!(SimpList::from_str("").is_err());
+    }
+
+    #[test]
+    fn test_types_simp_list_parse() {
+        let input = "avc1";
+        let simp_list = SimpList::from_str(&input).unwrap();
+        assert_eq!(&simp_list.to_string(), input);
+
+        let input = "avc1,mp4a";
+        let simp_list = SimpList::from_str(&input).unwrap();
+        assert_eq!(&simp_list.to_string(), input);
+    }
+
+    #[test]
+    fn test_types_codecs_parse() {
+        let input = "UTF-8'en'avc1.42E01E,mp4a.40.2";
         let codecs = Codecs::from_str(&input).unwrap();
+        assert_eq!(codecs, Codecs::Fancy(FancyList::from_str(&input).unwrap()));
+        assert_eq!(&codecs.to_string(), input);
 
-        let output = codecs.to_string();
+        let input = "avc1.42E01E,mp4a";
+        let codecs = Codecs::from_str(&input).unwrap();
+        assert_eq!(codecs, Codecs::Fancy(FancyList::from_str(&input).unwrap()));
+        assert_eq!(&codecs.to_string(), input);
 
-        assert_eq!(input, output.as_str());
+        let input = "avc1,mp4a";
+        let codecs = Codecs::from_str(&input).unwrap();
+        assert_eq!(codecs, Codecs::Simp(SimpList::from_str(&input).unwrap()));
+        assert_eq!(&codecs.to_string(), input);
     }
 
     #[test]
-    fn test_types_codecs_simp_invalid() {
-        let input = "h264,aac,";
-        let ret = Codecs::from_str(&input);
-
-        assert!(ret.is_err());
+    fn test_types_list_of_profiles_valid() {
+        assert!(ListOfProfiles::from_str("urn:example:resource").is_ok());
+        assert!(ListOfProfiles::from_str("https://example.com").is_ok());
+        assert!(ListOfProfiles::from_str("urn:example:resource,https://example.com").is_ok());
+        assert!(ListOfProfiles::from_str(
+            "urn:example:resource,urn:another:resource,https://example.org"
+        )
+        .is_ok());
+        assert!(ListOfProfiles::from_str(
+            "urn:example:namespace,https://example.com,http://example.org"
+        )
+        .is_ok());
     }
 
     #[test]
-    fn test_types_single_range_type_serde_full() {
-        let plain = "100-200";
-        let range = SingleRFC7233Range::from_str(&plain).unwrap();
+    fn test_types_list_of_profiles_invalid() {
+        assert!(ListOfProfiles::from_str("urn::invalid:urn").is_err());
+        assert!(ListOfProfiles::from_str("urn:missing:section:,http://example.com").is_err());
+        assert!(ListOfProfiles::from_str("urn:example:resource,\nhttps://example.com").is_err());
+        assert!(ListOfProfiles::from_str("https:/invalid-url").is_err());
+        assert!(ListOfProfiles::from_str("ftp://not-supported-url").is_err());
+        assert!(ListOfProfiles::from_str("urn:valid, ,https://valid-url.com").is_err());
+        assert!(ListOfProfiles::from_str("urn:valid,,https://valid-url.com").is_err());
+        assert!(ListOfProfiles::from_str(",").is_err());
+        assert!(ListOfProfiles::from_str("").is_err());
+    }
+
+    #[test]
+    fn test_types_list_of_profiles_parse() {
+        let profiles = ListOfProfiles::from_str(
+            "urn:example:namespace,https://example.com,http://example.org",
+        )
+        .unwrap();
 
         assert_eq!(
-            range,
-            SingleRFC7233Range {
-                start: Some(100),
-                end: Some(200)
-            }
+            profiles.value,
+            [
+                Profile::from_str("urn:example:namespace").unwrap(),
+                Profile::from_str("https://example.com").unwrap(),
+                Profile::from_str("http://example.org").unwrap(),
+            ]
         );
-
-        let ser = range.to_string();
-
-        assert_eq!(plain, ser.as_str());
-    }
-
-    #[test]
-    fn test_types_single_range_type_serde_start_only() {
-        let plain = "100-";
-        let range = SingleRFC7233Range::from_str(&plain).unwrap();
 
         assert_eq!(
-            range,
-            SingleRFC7233Range {
-                start: Some(100),
-                end: None
-            }
+            &profiles.to_string(),
+            "urn:example:namespace,https://example.com,http://example.org"
         );
-
-        let ser = range.to_string();
-
-        assert_eq!(plain, ser.as_str());
     }
 
     #[test]
-    fn test_types_single_range_type_serde_end_only() {
-        let plain = "-200";
-        let range = SingleRFC7233Range::from_str(&plain).unwrap();
-
-        assert_eq!(
-            range,
-            SingleRFC7233Range {
-                start: None,
-                end: Some(200)
-            }
-        );
-
-        let ser = range.to_string();
-
-        assert_eq!(plain, ser.as_str());
+    fn test_types_whitespace_separated_list_valid() {
+        assert!(UIntVector::from_str("1 2 3 4 5").is_ok());
+        assert!(StringVector::from_str("a b c d e").is_ok());
+        assert!(ListOfFourCC::from_str("MPEG JPEG H264").is_ok());
+        assert!(AudioSamplingRate::from_str("1 2").is_ok());
+        assert!(UIntVector::from_str("").is_ok());
     }
 
     #[test]
-    fn test_types_single_range_type_serde_empty() {
-        let plain = "";
-        let range = SingleRFC7233Range::from_str(&plain).unwrap();
-
-        assert_eq!(
-            range,
-            SingleRFC7233Range {
-                start: None,
-                end: None
-            }
-        );
-
-        let ser = range.to_string();
-
-        assert_eq!(plain, ser.as_str());
-    }
-
-    #[test]
-    fn test_types_single_range_type_invalid_format() {
-        let plain = "abc-xyz";
-        let range = SingleRFC7233Range::from_str(&plain);
-
-        assert!(range.is_err());
-    }
-
-    #[test]
-    fn test_types_url_type_serde() {
-        let xml = r#"<Url sourceURL="http://example.com/video.mp4" range="100-200"/>"#;
-
-        let ret = quick_xml::de::from_str::<Url>(&xml).unwrap();
-
-        assert_eq!(
-            ret,
-            Url {
-                source_url: Some("http://example.com/video.mp4".to_string()),
-                range: Some(SingleRFC7233Range {
-                    start: Some(100),
-                    end: Some(200)
-                })
-            }
-        );
-
-        let mut se = String::new();
-        let ser = quick_xml::se::Serializer::new(&mut se);
-        ret.serialize(ser).unwrap();
-
-        assert_eq!(xml, se.as_str());
-    }
-
-    #[test]
-    fn test_types_failover_content_type_serde() {
-        let xml = r#"<FailoverContent valid="true">
-  <FCS t="1625152800" d="3600"/>
-  <FCS t="1625156400"/>
-</FailoverContent>"#;
-
-        let ret = quick_xml::de::from_str::<FailoverContent>(&xml).unwrap();
-
-        assert_eq!(
-            ret,
-            FailoverContent {
-                valid: Some(true),
-                fcs_list: vec![
-                    Fcs {
-                        start_time: 1625152800,
-                        duration: Some(3600)
-                    },
-                    Fcs {
-                        start_time: 1625156400,
-                        duration: None
-                    }
-                ]
-            }
-        );
-
-        let mut se = String::new();
-        let mut ser = quick_xml::se::Serializer::new(&mut se);
-        ser.indent(' ', 2);
-        ret.serialize(ser).unwrap();
-
-        assert_eq!(xml, se.as_str());
+    fn test_types_whitespace_separated_list_invalid() {
+        assert!(UIntVector::from_str("a b c").is_err());
+        assert!(ListOfFourCC::from_str("a,b,c,d,e").is_err());
+        assert!(AudioSamplingRate::from_str("1 2 3").is_err());
+        assert!(AudioSamplingRate::from_str("").is_err());
     }
 }

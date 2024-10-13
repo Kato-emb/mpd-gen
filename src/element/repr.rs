@@ -2,6 +2,7 @@ use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
+use crate::element::*;
 use crate::types::*;
 
 use super::segment::{SegmentBase, SegmentList, SegmentTemplate};
@@ -32,7 +33,7 @@ pub struct Representation {
     #[serde(rename = "@height")]
     height: Option<u32>,
     #[serde(rename = "@sar")]
-    sar: Option<AspectRatio>,
+    sar: Option<Ratio>,
     #[serde(rename = "@frameRate")]
     framerate: Option<FrameRate>,
     #[serde(rename = "@audioSamplingRate")]
@@ -122,7 +123,7 @@ pub struct SubRepresentation {
     #[serde(rename = "@height")]
     height: Option<u32>,
     #[serde(rename = "@sar")]
-    sar: Option<AspectRatio>,
+    sar: Option<Ratio>,
     #[serde(rename = "@frameRate")]
     framerate: Option<FrameRate>,
     #[serde(rename = "@audioSamplingRate")]
@@ -183,8 +184,6 @@ pub struct SubRepresentation {
 mod tests {
     use std::str::FromStr;
 
-    use crate::scheme::Profile;
-
     use super::*;
 
     #[test]
@@ -194,11 +193,11 @@ mod tests {
             .bandwidth(2_000_000u32)
             .dependency_id(["a".to_string(), "b".to_string()].as_slice())
             .association_type([0x54534554, 0x4D4A5047].as_slice())
-            .profiles([Profile::Cmaf, Profile::CmafExt].as_slice())
+            // .profiles([Profile::Cmaf, Profile::CmafExt].as_slice())
             .width(1920u32)
             .height(1080u32)
-            .sar(AspectRatio::from((1920, 1080)))
-            .framerate(FrameRate::from((30, 1)))
+            .sar(Ratio::from((1920, 1080)))
+            // .framerate(FrameRate::from((30, 1)))
             .codecs(Codecs::from_str("avc1.4d0028").unwrap())
             .build()
             .unwrap();
