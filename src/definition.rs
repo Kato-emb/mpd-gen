@@ -5,8 +5,12 @@ use strum_macros::{Display, EnumString};
 use crate::{entity::*, error::MpdError, Result};
 
 pub const MPD_NAMESPACE: &str = "urn:mpeg:dash:schema:mpd:2011";
+pub const XML_LINKING_LANGUAGE: &str = "http://www.w3.org/1999/xlink";
 pub const MPD_SCHEMA_FILE: &str = "DASH-MPD.xsd";
 pub const MPD_SCHEMA_INSTANCE: &str = "http://www.w3.org/2001/XMLSchema-instance";
+pub const DASH_DVB_EXTENTION: &str = "urn:dvb:dash-extentions:2014-1";
+
+pub const ROLE_SCHEME: &str = "urn:mpeg:dash:role:2011";
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, EnumString, Display)]
 pub enum PeriodSignalling {

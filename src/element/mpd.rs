@@ -19,15 +19,27 @@ use super::{
     build_fn(validate = "Self::validate")
 )]
 pub struct MPD {
-    #[serde(rename = "@xmlns:xsi")]
-    #[builder(default = "Some(MPD_SCHEMA_INSTANCE.into())")]
-    xmlns_xsi: Option<String>,
     #[serde(rename = "@xmlns")]
     #[builder(default = "Some(MPD_NAMESPACE.into())")]
     xmlns: Option<String>,
+    #[serde(rename = "@xmlns:xsi")]
+    #[builder(default = "Some(MPD_SCHEMA_INSTANCE.into())")]
+    xmlns_xsi: Option<String>,
+    #[serde(rename = "@xmlns:ext")]
+    xmlns_ext: Option<String>,
+    #[serde(rename = "@xmlns:xlink")]
+    xmlns_xlink: Option<String>,
+    #[serde(rename = "@xmlns:cenc")]
+    xmlns_cenc: Option<String>,
+    #[serde(rename = "@xmlns:dvb")]
+    xmlns_dvb: Option<String>,
+    #[serde(rename = "@xmlns:scte35")]
+    xmlns_scte35: Option<String>,
+    #[serde(rename = "@xmlns:scte214")]
+    xmlns_scte214: Option<String>,
     #[serde(rename = "@xsi:schemaLocation")]
     #[builder(default = "Some(vec![MPD_NAMESPACE, MPD_SCHEMA_FILE].into())")]
-    schema_location: Option<StringVector>,
+    xsi_schema_location: Option<StringVector>,
     #[serde(rename = "@id")]
     id: Option<String>,
     #[serde(rename = "@profiles")]
