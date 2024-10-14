@@ -144,16 +144,30 @@ pub struct InitializationSet {
 /// UInt Vector With ID
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(
+    setter(into, strip_option),
+    default,
+    build_fn(validate = "Self::validate")
+)]
 pub struct UIntVWithID {
-    #[serde(rename = "$value")]
+    #[serde(rename = "$text")]
     base: UIntVector,
     #[serde(rename = "@id")]
     id: u32,
-    #[serde(rename = "@profiles", skip_serializing_if = "Vec::is_empty")]
-    profiles: Vec<ListOfProfiles>,
+    #[serde(rename = "@profiles")]
+    profiles: Option<Vec<ListOfProfiles>>,
     #[serde(rename = "@contentType")]
     content_type: Option<ContentType>,
+}
+
+impl NeedValidater for UIntVWithIDBuilder {
+    fn validate(&self) -> Result<(), String> {
+        if self.id.is_none() {
+            Err("Must be set a unique unsigned integer identifier".to_string())
+        } else {
+            Ok(())
+        }
+    }
 }
 
 /// Metrics Range
@@ -168,21 +182,42 @@ pub struct MetricsRange {
 }
 
 /// Metrics
+#[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(
+    setter(into, strip_option),
+    default,
+    build_fn(validate = "Self::validate")
+)]
 pub struct Metrics {
     #[serde(rename = "@metrics")]
     metrics: String,
-    #[serde(rename = "Range", skip_serializing_if = "Vec::is_empty")]
-    range: Vec<MetricsRange>,
-    #[serde(rename = "Reporting", skip_serializing_if = "Vec::is_empty")]
+    #[serde(rename = "Range")]
+    range: Option<Vec<MetricsRange>>,
+    #[serde(rename = "Reporting")]
     reporting: Vec<Descriptor>,
+}
+
+impl NeedValidater for MetricsBuilder {
+    fn validate(&self) -> Result<(), String> {
+        if self.metrics.is_none() {
+            Err("Metrics must be set @metrics attribute".to_string())
+        } else if !self.reporting.as_ref().is_some_and(|rep| !rep.is_empty()) {
+            Err("Metrics must be set Reporting element longer than 0".to_string())
+        } else {
+            Ok(())
+        }
+    }
 }
 
 /// Leap Second Information
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(
+    setter(into, strip_option),
+    default,
+    build_fn(validate = "Self::validate")
+)]
 pub struct LeapSecondInformation {
     #[serde(rename = "@availabilityStartLeapOffset")]
     availability_start_leap_offset: i32,
@@ -192,9 +227,26 @@ pub struct LeapSecondInformation {
     next_leap_change_time: Option<XsDateTime>,
 }
 
+impl NeedValidater for LeapSecondInformationBuilder {
+    fn validate(&self) -> Result<(), String> {
+        if self.availability_start_leap_offset.is_none() {
+            Err("LeapSecondInformation must be set @availabilityStartLeapOffset".to_string())
+        } else {
+            Ok(())
+        }
+    }
+}
+
+/// Descriptor
+///
 /// Table 32
+#[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(
+    setter(into, strip_option),
+    default,
+    build_fn(validate = "Self::validate")
+)]
 pub struct Descriptor {
     #[serde(rename = "@schemeIdUri")]
     scheme_id_uri: XsAnyURI,
@@ -204,12 +256,12 @@ pub struct Descriptor {
     id: Option<String>,
 }
 
-impl From<(String, (Option<String>, Option<String>))> for Descriptor {
-    fn from(value: (String, (Option<String>, Option<String>))) -> Self {
-        Self {
-            scheme_id_uri: value.0.into(),
-            value: value.1 .0,
-            id: value.1 .1,
+impl NeedValidater for DescriptorBuilder {
+    fn validate(&self) -> Result<(), String> {
+        if self.scheme_id_uri.is_none() {
+            Err("Descriptor must be set @schemeIdUri".to_string())
+        } else {
+            Ok(())
         }
     }
 }
@@ -249,7 +301,11 @@ pub struct Event {
 
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(
+    setter(into, strip_option),
+    default,
+    build_fn(validate = "Self::validate")
+)]
 pub struct EventStream {
     #[serde(rename = "@xlink:href")]
     href: Option<String>,
@@ -263,13 +319,27 @@ pub struct EventStream {
     timescale: Option<u32>,
     #[serde(rename = "@presentationTimeOffset")]
     presentation_time_offset: Option<u64>,
-    #[serde(rename = "Event", skip_serializing_if = "Vec::is_empty")]
-    events: Vec<Event>,
+    #[serde(rename = "Event")]
+    events: Option<Vec<Event>>,
+}
+
+impl NeedValidater for EventStreamBuilder {
+    fn validate(&self) -> Result<(), String> {
+        if self.scheme_id_uri.is_none() {
+            Err("EventStream must be set @schemeIdUri".to_string())
+        } else {
+            Ok(())
+        }
+    }
 }
 
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(
+    setter(into, strip_option),
+    default,
+    build_fn(validate = "Self::validate")
+)]
 pub struct Switching {
     #[serde(rename = "@interval")]
     interval: u32,
@@ -277,9 +347,23 @@ pub struct Switching {
     r#type: Option<SwitchingType>,
 }
 
+impl NeedValidater for SwitchingBuilder {
+    fn validate(&self) -> Result<(), String> {
+        if self.interval.is_none() {
+            Err("Switching must be set @interval".to_string())
+        } else {
+            Ok(())
+        }
+    }
+}
+
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(
+    setter(into, strip_option),
+    default,
+    build_fn(validate = "Self::validate")
+)]
 pub struct RandomAccess {
     #[serde(rename = "@interval")]
     interval: u32,
@@ -289,6 +373,16 @@ pub struct RandomAccess {
     min_buffer_time: Option<XsDuration>,
     #[serde(rename = "@bandwidth")]
     bandwidth: Option<u32>,
+}
+
+impl NeedValidater for RandomAccessBuilder {
+    fn validate(&self) -> Result<(), String> {
+        if self.interval.is_none() {
+            Err("RandomAccess must be set @interval".to_string())
+        } else {
+            Ok(())
+        }
+    }
 }
 
 #[skip_serializing_none]
@@ -301,9 +395,15 @@ pub struct Label {
     lang: Option<XsLanguage>,
 }
 
+pub type GroupLavel = Label;
+
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(
+    setter(into, strip_option),
+    default,
+    build_fn(validate = "Self::validate")
+)]
 pub struct ProducerReferenceTime {
     #[serde(rename = "@id")]
     id: u32,
@@ -311,7 +411,6 @@ pub struct ProducerReferenceTime {
     inband: Option<bool>,
     #[serde(rename = "@type")]
     r#type: Option<ProducerReferenceTimeType>,
-    /// type: applicationの時は必須、それ以外はあってはならない
     #[serde(rename = "@applicationScheme")]
     application_scheme: Option<String>,
     #[serde(rename = "@wallClockTime")]
@@ -322,9 +421,36 @@ pub struct ProducerReferenceTime {
     utc_timing: Option<Descriptor>,
 }
 
+impl NeedValidater for ProducerReferenceTimeBuilder {
+    fn validate(&self) -> Result<(), String> {
+        if self.id.is_none() || self.wall_clock_time.is_none() || self.presentation_time.is_none() {
+            Err(
+                "ProducerReferenceTime must be set @id, @wallClockTime and @presentationTime"
+                    .to_string(),
+            )
+        } else if self
+            .r#type
+            .as_ref()
+            .is_some_and(|typ| typ == &Some(ProducerReferenceTimeType::Application))
+            && self.application_scheme.is_none()
+        {
+            Err(
+                "If the @type is set other than application, this attribute shall not be present"
+                    .to_string(),
+            )
+        } else {
+            Ok(())
+        }
+    }
+}
+
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(
+    setter(into, strip_option),
+    default,
+    build_fn(validate = "Self::validate")
+)]
 pub struct PopularityRate {
     // 1 ~ 100の範囲指定
     #[serde(rename = "@popularityRate")]
@@ -335,9 +461,28 @@ pub struct PopularityRate {
     repeat_count: Option<i32>,
 }
 
+impl NeedValidater for PopularityRateBuilder {
+    fn validate(&self) -> Result<(), String> {
+        match self.popularity_rate.as_ref() {
+            Some(rate) => {
+                if !(1..=100).contains(rate) {
+                    Err("The value shall be in the range of 1 to 100.".to_string())
+                } else {
+                    Ok(())
+                }
+            }
+            None => Err("PopularityRate must be set @popularityRate".to_string()),
+        }
+    }
+}
+
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(
+    setter(into, strip_option),
+    default,
+    build_fn(validate = "Self::validate")
+)]
 pub struct ContentPopularityRate {
     #[serde(rename = "@source")]
     source: Source,
@@ -345,6 +490,22 @@ pub struct ContentPopularityRate {
     source_description: Option<String>,
     #[serde(rename = "PR")]
     popularity_rates: Vec<PopularityRate>,
+}
+
+impl NeedValidater for ContentPopularityRateBuilder {
+    fn validate(&self) -> Result<(), String> {
+        if self.source.is_none() {
+            Err("ContentPopularityRate must be set @source".to_string())
+        } else if !self
+            .popularity_rates
+            .as_ref()
+            .is_some_and(|rates| !rates.is_empty())
+        {
+            Err("ContentPopularityRate must be set PR longer than 0".to_string())
+        } else {
+            Ok(())
+        }
+    }
 }
 
 #[skip_serializing_none]
@@ -384,12 +545,26 @@ pub struct BaseURL {
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(
+    setter(into, strip_option),
+    default,
+    build_fn(validate = "Self::validate")
+)]
 pub struct ModelPair {
     #[serde(rename = "@bufferTime")]
     buffer_time: XsDuration,
     #[serde(rename = "@bandwidth")]
     bandwidth: u32,
+}
+
+impl NeedValidater for ModelPairBuilder {
+    fn validate(&self) -> Result<(), String> {
+        if self.buffer_time.is_none() || self.bandwidth.is_none() {
+            Err("ModelPair must be set @bufferTime and @bandwidth".to_string())
+        } else {
+            Ok(())
+        }
+    }
 }
 
 #[skip_serializing_none]
@@ -399,7 +574,7 @@ pub struct ExtendedBandwidth {
     #[serde(rename = "@vbr")]
     vbr: Option<bool>,
     #[serde(rename = "ModelPair")]
-    model_pair: Vec<ModelPair>,
+    model_pair: Option<Vec<ModelPair>>,
 }
 
 #[skip_serializing_none]
@@ -482,26 +657,45 @@ pub struct OperatingBandwidth {
     target_bandwidth: Option<i32>,
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(
+    setter(into, strip_option),
+    default,
+    build_fn(validate = "Self::validate")
+)]
 pub struct ServiceDescription {
     #[serde(rename = "@id")]
     id: u32,
-    #[serde(rename = "Scope", skip_serializing_if = "Vec::is_empty")]
-    scope: Vec<Descriptor>,
-    #[serde(rename = "Latency", skip_serializing_if = "Vec::is_empty")]
-    latency: Vec<Latency>,
-    #[serde(rename = "PlaybackRate", skip_serializing_if = "Vec::is_empty")]
-    playback_rate: Vec<PlaybackRate>,
-    #[serde(rename = "OperatingQuality", skip_serializing_if = "Vec::is_empty")]
-    operating_quality: Vec<OperatingQuality>,
-    #[serde(rename = "OperatingBandwidth", skip_serializing_if = "Vec::is_empty")]
-    operating_bandwidth: Vec<OperatingBandwidth>,
+    #[serde(rename = "Scope")]
+    scope: Option<Vec<Descriptor>>,
+    #[serde(rename = "Latency")]
+    latency: Option<Vec<Latency>>,
+    #[serde(rename = "PlaybackRate")]
+    playback_rate: Option<Vec<PlaybackRate>>,
+    #[serde(rename = "OperatingQuality")]
+    operating_quality: Option<Vec<OperatingQuality>>,
+    #[serde(rename = "OperatingBandwidth")]
+    operating_bandwidth: Option<Vec<OperatingBandwidth>>,
+}
+
+impl NeedValidater for ServiceDescriptionBuilder {
+    fn validate(&self) -> Result<(), String> {
+        if self.id.is_none() {
+            Err("ServiceDescription must be set @id".to_string())
+        } else {
+            Ok(())
+        }
+    }
 }
 
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(
+    setter(into, strip_option),
+    default,
+    build_fn(validate = "Self::validate")
+)]
 pub struct Subset {
     #[serde(rename = "@contains")]
     contains: UIntVector,
@@ -509,14 +703,28 @@ pub struct Subset {
     id: Option<String>,
 }
 
+impl NeedValidater for SubsetBuilder {
+    fn validate(&self) -> Result<(), String> {
+        if self.contains.is_none() {
+            Err("Subset must be set @contains".to_string())
+        } else {
+            Ok(())
+        }
+    }
+}
+
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(
+    setter(into, strip_option),
+    default,
+    build_fn(validate = "Self::validate")
+)]
 pub struct Preselection {
     #[serde(rename = "@id")]
     id: Option<NoWhitespace>,
     #[serde(rename = "@preselectionComponents")]
-    preselection_components: Vec<StringVector>,
+    preselection_components: StringVector,
     #[serde(rename = "@lang")]
     lang: Option<XsLanguage>,
     #[serde(rename = "@order")]
@@ -595,6 +803,16 @@ pub struct Preselection {
     // common attributes elements
 }
 
+impl NeedValidater for PreselectionBuilder {
+    fn validate(&self) -> Result<(), String> {
+        if self.preselection_components.is_none() {
+            Err("Preselection must be set @preselectionComponents".to_string())
+        } else {
+            Ok(())
+        }
+    }
+}
+
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
 #[builder(setter(into, strip_option), default)]
@@ -605,24 +823,52 @@ pub struct Url {
     pub range: Option<SingleByteRange>,
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
-#[builder(setter(into, strip_option), default)]
-#[serde(rename = "FCS")]
+#[builder(
+    setter(into, strip_option),
+    default,
+    build_fn(validate = "Self::validate")
+)]
 pub struct Fcs {
     #[serde(rename = "@t")]
     pub start_time: u64,
-    #[serde(rename = "@d", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "@d")]
     pub duration: Option<u64>,
 }
 
+impl NeedValidater for FcsBuilder {
+    fn validate(&self) -> Result<(), String> {
+        if self.start_time.is_none() {
+            Err("FCS must be set @t".to_string())
+        } else {
+            Ok(())
+        }
+    }
+}
+
+#[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
-#[builder(setter(into, strip_option), default)]
-#[serde(rename = "FailoverContent")]
+#[builder(
+    setter(into, strip_option),
+    default,
+    build_fn(validate = "Self::validate")
+)]
 pub struct FailoverContent {
     #[serde(rename = "@valid")]
     pub valid: Option<bool>,
-    #[serde(rename = "FCS", skip_serializing_if = "Vec::is_empty")]
+    #[serde(rename = "FCS")]
     pub fcs_list: Vec<Fcs>,
+}
+
+impl NeedValidater for FailoverContentBuilder {
+    fn validate(&self) -> Result<(), String> {
+        if !self.fcs_list.as_ref().is_some_and(|list| !list.is_empty()) {
+            Err("FailoverContent must be set FCS longer than 0".to_string())
+        } else {
+            Ok(())
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
@@ -637,4 +883,200 @@ pub struct SegmentUrl {
     index: Option<XsAnyURI>,
     #[serde(rename = "@indexRange")]
     index_range: Option<SingleByteRange>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_element_u_int_v_with_id_valid() {
+        assert!(UIntVWithIDBuilder::default().id(1u32).build().is_ok());
+        assert!(UIntVWithIDBuilder::default().build().is_err());
+    }
+
+    #[test]
+    fn test_element_metrics_valid() {
+        let reporting = DescriptorBuilder::default()
+            .scheme_id_uri("https://example.com")
+            .build()
+            .unwrap();
+        assert!(MetricsBuilder::default()
+            .metrics("metric_key1,metric_key2")
+            .reporting(vec![reporting.clone()])
+            .build()
+            .is_ok());
+        assert!(MetricsBuilder::default().build().is_err());
+        assert!(MetricsBuilder::default()
+            .metrics("metric_key1,metric_key2")
+            .build()
+            .is_err());
+        assert!(MetricsBuilder::default()
+            .reporting(vec![reporting])
+            .build()
+            .is_err());
+    }
+
+    #[test]
+    fn test_element_leap_second_information_valid() {
+        assert!(LeapSecondInformationBuilder::default()
+            .availability_start_leap_offset(1i32)
+            .build()
+            .is_ok());
+        assert!(LeapSecondInformationBuilder::default().build().is_err());
+    }
+
+    #[test]
+    fn test_element_descriptor_valid() {
+        assert!(DescriptorBuilder::default()
+            .scheme_id_uri("https://example.com")
+            .build()
+            .is_ok());
+        assert!(DescriptorBuilder::default().build().is_err());
+    }
+
+    #[test]
+    fn test_element_event_stream_valid() {
+        assert!(EventStreamBuilder::default()
+            .scheme_id_uri("https://example.com")
+            .build()
+            .is_ok());
+        assert!(EventStreamBuilder::default().build().is_err());
+    }
+
+    #[test]
+    fn test_element_switching_valid() {
+        assert!(SwitchingBuilder::default().interval(1u32).build().is_ok());
+        assert!(SwitchingBuilder::default().build().is_err());
+    }
+
+    #[test]
+    fn test_element_random_access_valid() {
+        assert!(RandomAccessBuilder::default()
+            .interval(1u32)
+            .build()
+            .is_ok());
+        assert!(RandomAccessBuilder::default().build().is_err());
+    }
+
+    #[test]
+    fn test_element_producer_reference_time_valid() {
+        assert!(ProducerReferenceTimeBuilder::default()
+            .id(1u32)
+            .wall_clock_time("12345")
+            .presentation_time(1u64)
+            .build()
+            .is_ok());
+        assert!(ProducerReferenceTimeBuilder::default().build().is_err());
+        assert!(ProducerReferenceTimeBuilder::default()
+            .id(1u32)
+            .wall_clock_time("12345")
+            .presentation_time(1u64)
+            .r#type(ProducerReferenceTimeType::Application)
+            .application_scheme("https://example.com")
+            .build()
+            .is_ok());
+        assert!(ProducerReferenceTimeBuilder::default()
+            .id(1u32)
+            .wall_clock_time("12345")
+            .presentation_time(1u64)
+            .r#type(ProducerReferenceTimeType::Application)
+            .build()
+            .is_err());
+    }
+
+    #[test]
+    fn test_element_popularity_rate_valid() {
+        assert!(PopularityRateBuilder::default()
+            .popularity_rate(1u32)
+            .build()
+            .is_ok());
+        assert!(PopularityRateBuilder::default().build().is_err());
+        assert!(PopularityRateBuilder::default()
+            .popularity_rate(0u32)
+            .build()
+            .is_err());
+    }
+
+    #[test]
+    fn test_element_content_popularity_rate_valid() {
+        let popularity_rate = PopularityRateBuilder::default()
+            .popularity_rate(1u32)
+            .build()
+            .unwrap();
+
+        assert!(ContentPopularityRateBuilder::default()
+            .source(Source::Content)
+            .popularity_rates(vec![popularity_rate.clone()])
+            .build()
+            .is_ok());
+        assert!(ContentPopularityRateBuilder::default()
+            .source(Source::Content)
+            .build()
+            .is_err());
+        assert!(ContentPopularityRateBuilder::default()
+            .popularity_rates(vec![popularity_rate.clone()])
+            .build()
+            .is_err());
+    }
+
+    #[test]
+    fn test_element_model_pair_vaild() {
+        assert!(ModelPairBuilder::default()
+            .buffer_time(std::time::Duration::from_secs(5))
+            .bandwidth(2_000_000u32)
+            .build()
+            .is_ok());
+        assert!(ModelPairBuilder::default().build().is_err());
+        assert!(ModelPairBuilder::default()
+            .buffer_time(std::time::Duration::from_secs(5))
+            .build()
+            .is_err());
+        assert!(ModelPairBuilder::default()
+            .bandwidth(2_000_000u32)
+            .build()
+            .is_err());
+    }
+
+    #[test]
+    fn test_element_service_description_vaild() {
+        assert!(ServiceDescriptionBuilder::default()
+            .id(1u32)
+            .build()
+            .is_ok());
+        assert!(ServiceDescriptionBuilder::default().build().is_err());
+    }
+
+    #[test]
+    fn test_element_subset_valid() {
+        let contains = UIntVector::from([1u32, 2, 3].as_slice());
+        assert!(SubsetBuilder::default().contains(contains).build().is_ok());
+        assert!(SubsetBuilder::default().build().is_err());
+    }
+
+    #[test]
+    fn test_element_preselection_valid() {
+        let preselection_components = StringVector::from(["id_1", "id_2"].as_slice());
+        assert!(PreselectionBuilder::default()
+            .preselection_components(preselection_components)
+            .build()
+            .is_ok());
+        assert!(PreselectionBuilder::default().build().is_err());
+    }
+
+    #[test]
+    fn test_element_fcs_valid() {
+        assert!(FcsBuilder::default().start_time(1u64).build().is_ok());
+        assert!(FcsBuilder::default().build().is_err());
+    }
+
+    #[test]
+    fn test_element_failover_content_valid() {
+        let fcs = FcsBuilder::default().start_time(1u64).build().unwrap();
+        assert!(FailoverContentBuilder::default()
+            .fcs_list(vec![fcs])
+            .build()
+            .is_ok());
+        assert!(FailoverContentBuilder::default().build().is_err());
+    }
 }

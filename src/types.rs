@@ -320,6 +320,15 @@ impl FromStr for XsDuration {
     }
 }
 
+impl From<std::time::Duration> for XsDuration {
+    fn from(value: std::time::Duration) -> Self {
+        Self {
+            value,
+            is_negative: false,
+        }
+    }
+}
+
 /// 4CC as per latest 14496-12
 #[derive(Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct FourCC {

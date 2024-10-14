@@ -187,7 +187,7 @@ pub struct SubRepresentation {
     #[serde(rename = "RandomAccess")]
     random_access: Option<Vec<RandomAccess>>,
     #[serde(rename = "GroupLabel")]
-    group_lavel: Option<Vec<Label>>,
+    group_lavel: Option<Vec<GroupLavel>>,
     #[serde(rename = "Label")]
     lavel: Option<Vec<Label>>,
     #[serde(rename = "ProducerReferenceTime")]

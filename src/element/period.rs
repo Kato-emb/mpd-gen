@@ -50,7 +50,7 @@ pub struct Period {
     #[serde(rename = "EmptyAdaptationSet")]
     empty_adaptation_set: Option<Vec<AdaptationSet>>,
     #[serde(rename = "GroupLabel")]
-    group_lavel: Option<Vec<Label>>,
+    group_lavel: Option<Vec<GroupLavel>>,
     #[serde(rename = "Preselection")]
     preselection: Option<Vec<Preselection>>,
 }

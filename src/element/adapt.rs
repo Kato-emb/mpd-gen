@@ -76,7 +76,7 @@ pub struct AdaptationSet {
     #[serde(rename = "RandomAccess")]
     random_access: Option<Vec<RandomAccess>>,
     #[serde(rename = "GroupLabel")]
-    group_lavel: Option<Vec<Label>>,
+    group_lavel: Option<Vec<GroupLavel>>,
     #[serde(rename = "Label")]
     lavel: Option<Vec<Label>>,
     #[serde(rename = "ProducerReferenceTime")]
@@ -183,17 +183,17 @@ mod tests {
             .build()
             .unwrap();
 
-        let role = Descriptor::from((
-            "urn:mpeg:dash:role:2011".to_string(),
-            (Some("main".to_string()), None),
-        ));
+        // let role = Descriptor::from((
+        //     "urn:mpeg:dash:role:2011".to_string(),
+        //     (Some("main".to_string()), None),
+        // ));
 
         let adapt = AdaptationSetBuilder::default()
             .content_type(ContentType::Video)
             .segment_alignment(true)
             .mime_type("video/mp4")
             .start_with_sap(StreamAccessPoint::Type1)
-            .role(vec![role])
+            // .role(vec![role])
             .segment_template(segment_template)
             .representation(vec![representation])
             .build()
