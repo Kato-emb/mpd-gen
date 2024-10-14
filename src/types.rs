@@ -204,29 +204,41 @@ impl Deref for XsDuration {
 
 impl fmt::Display for XsDuration {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut output = if self.is_negative {
+            String::from("-PT")
+        } else {
+            String::from("PT")
+        };
+
         let mut seconds = self.value.as_secs();
         let mut nanos = self.value.subsec_nanos();
 
         let hours = seconds / 3600;
         seconds = seconds % 3600;
 
+        if hours != 0 {
+            output.push_str(&format!("{hours}H"));
+        }
+
         let minutes = seconds / 60;
         seconds = seconds % 60;
 
-        let sec_with_fraction = if nanos != 0 {
+        if minutes != 0 {
+            output.push_str(&format!("{minutes}M"));
+        }
+
+        if nanos != 0 {
             // 末尾の０を削除
             while nanos % 10 == 0 {
                 nanos /= 10;
             }
 
-            format!("{}.{}", seconds, nanos)
-        } else {
-            format!("{}", seconds)
+            output.push_str(&format!("{}.{}S", seconds, nanos));
+        } else if seconds != 0 {
+            output.push_str(&format!("{}S", seconds));
         };
 
-        let sign = if self.is_negative { "-" } else { "" };
-
-        write!(f, "{}PT{}H{}M{}S", sign, hours, minutes, sec_with_fraction)
+        write!(f, "{output}")
     }
 }
 
@@ -1156,13 +1168,13 @@ mod tests {
         assert_eq!(&duration.to_string(), "PT21972H35M30S");
 
         let duration = XsDuration::from_str("P20M").unwrap();
-        assert_eq!(&duration.to_string(), "PT14400H0M0S");
+        assert_eq!(&duration.to_string(), "PT14400H");
 
         let duration = XsDuration::from_str("PT20M").unwrap();
-        assert_eq!(&duration.to_string(), "PT0H20M0S");
+        assert_eq!(&duration.to_string(), "PT20M");
 
         let duration = XsDuration::from_str("PT1M30.5S").unwrap();
-        assert_eq!(&duration.to_string(), "PT0H1M30.5S");
+        assert_eq!(&duration.to_string(), "PT1M30.5S");
 
         let duration = XsDuration::from_str("-P2DT1M30.123456789S").unwrap();
         assert_eq!(&duration.to_string(), "-PT48H1M30.123456789S");
