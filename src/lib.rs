@@ -1,7 +1,7 @@
+mod definition;
 mod element;
 mod entity;
 mod error;
-mod scheme;
 mod types;
 
 #[macro_use]

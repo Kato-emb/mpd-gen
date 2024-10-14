@@ -162,7 +162,11 @@ impl SegmentTimelineBuilder {
 /// Attribute name is `S`
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(
+    setter(into, strip_option),
+    default,
+    build_fn(validate = "Self::validate")
+)]
 #[serde(rename = "S")]
 pub struct Segment {
     #[serde(rename = "@t")]
@@ -177,11 +181,27 @@ pub struct Segment {
     repeat_count: Option<XsInteger>,
 }
 
+impl NeedValidater for SegmentBuilder {
+    fn validate(&self) -> Result<(), String> {
+        if self.duration == None || self.duration == Some(0) {
+            Err("Segment duration must be set longer than 0".to_string())
+        } else {
+            Ok(())
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
 
     use super::*;
+
+    #[test]
+    fn test_element_segment_valid() {
+        assert!(SegmentBuilder::default().duration(1u64).build().is_ok());
+        assert!(SegmentBuilder::default().build().is_err());
+    }
 
     #[test]
     fn test_element_segment_timeline() {
@@ -228,10 +248,13 @@ mod tests {
             .timescale(3000u32)
             .availability_time_offset(10.1)
             .time_shift_buffer_depth(XsDuration::from_str("PT3H11M53S").unwrap())
-            // .initialization((
-            //     Some("http://example.com/video.mp4".to_string()),
-            //     (Some(100), Some(200)),
-            // ))
+            .initialization(
+                UrlBuilder::default()
+                    .source_url("http://example.com/video.mp4")
+                    .range(SingleByteRange::from_str("0-200").unwrap())
+                    .build()
+                    .unwrap(),
+            )
             .build()
             .unwrap();
 
@@ -241,6 +264,7 @@ mod tests {
         segment_base.serialize(ser).unwrap();
 
         let der = quick_xml::de::from_str::<SegmentBase>(&xml).unwrap();
+        println!("{xml}");
 
         assert_eq!(segment_base, der);
     }

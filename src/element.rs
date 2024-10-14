@@ -4,13 +4,20 @@ pub mod period;
 pub mod repr;
 pub mod segment;
 
+use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
 use crate::types::*;
 
+pub trait NeedValidater {
+    fn validate(&self) -> Result<(), String>;
+}
+
+/// Program Information
 #[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct ProgramInformation {
     #[serde(rename = "@lang")]
     lang: Option<XsLanguage>,
@@ -24,8 +31,10 @@ pub struct ProgramInformation {
     copyright: Option<String>,
 }
 
+/// Patch Location Type
 #[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct PatchLocation {
     #[serde(rename = "$text")]
     base: XsAnyURI,
@@ -33,8 +42,10 @@ pub struct PatchLocation {
     ttl: Option<f64>,
 }
 
+/// Initialization Set
 #[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct InitializationSet {
     #[serde(rename = "@xlink:href", alias = "href")]
     href: Option<String>,
@@ -130,8 +141,10 @@ pub struct InitializationSet {
     viewpoint: Option<Vec<Descriptor>>,
 }
 
+/// UInt Vector With ID
 #[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct UIntVWithID {
     #[serde(rename = "$value")]
     base: UIntVector,
@@ -143,8 +156,10 @@ pub struct UIntVWithID {
     content_type: Option<ContentType>,
 }
 
+/// Metrics Range
 #[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct MetricsRange {
     #[serde(rename = "@starttime")]
     start_time: Option<XsDuration>,
@@ -152,7 +167,9 @@ pub struct MetricsRange {
     duration: Option<XsDuration>,
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
+/// Metrics
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct Metrics {
     #[serde(rename = "@metrics")]
     metrics: String,
@@ -162,8 +179,10 @@ pub struct Metrics {
     reporting: Vec<Descriptor>,
 }
 
+/// Leap Second Information
 #[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct LeapSecondInformation {
     #[serde(rename = "@availabilityStartLeapOffset")]
     availability_start_leap_offset: i32,
@@ -174,7 +193,8 @@ pub struct LeapSecondInformation {
 }
 
 /// Table 32
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct Descriptor {
     #[serde(rename = "@schemeIdUri")]
     scheme_id_uri: XsAnyURI,
@@ -197,7 +217,8 @@ impl From<(String, (Option<String>, Option<String>))> for Descriptor {
 /// Table 33
 ///
 /// refとref_idはどちらか一方しか存在できない
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct ContentProtection {
     #[serde(flatten)]
     descriptor: Descriptor,
@@ -210,7 +231,8 @@ pub struct ContentProtection {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct Event {
     #[serde(rename = "@presentationTime")]
     presentation_time: Option<u64>,
@@ -226,7 +248,8 @@ pub struct Event {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct EventStream {
     #[serde(rename = "@xlink:href")]
     href: Option<String>,
@@ -245,7 +268,8 @@ pub struct EventStream {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct Switching {
     #[serde(rename = "@interval")]
     interval: u32,
@@ -254,7 +278,8 @@ pub struct Switching {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct RandomAccess {
     #[serde(rename = "@interval")]
     interval: u32,
@@ -267,7 +292,8 @@ pub struct RandomAccess {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct Label {
     #[serde(rename = "@id")]
     id: Option<u32>,
@@ -276,7 +302,8 @@ pub struct Label {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct ProducerReferenceTime {
     #[serde(rename = "@id")]
     id: u32,
@@ -296,7 +323,8 @@ pub struct ProducerReferenceTime {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct PopularityRate {
     // 1 ~ 100の範囲指定
     #[serde(rename = "@popularityRate")]
@@ -308,7 +336,8 @@ pub struct PopularityRate {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct ContentPopularityRate {
     #[serde(rename = "@source")]
     source: Source,
@@ -319,7 +348,8 @@ pub struct ContentPopularityRate {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct Resync {
     #[serde(rename = "@type")]
     r#type: Option<StreamAccessPoint>,
@@ -334,7 +364,8 @@ pub struct Resync {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct BaseURL {
     #[serde(rename = "$text")]
     base: XsAnyURI,
@@ -352,7 +383,8 @@ pub struct BaseURL {
     range_access: Option<bool>,
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct ModelPair {
     #[serde(rename = "@bufferTime")]
     buffer_time: XsDuration,
@@ -361,7 +393,8 @@ pub struct ModelPair {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct ExtendedBandwidth {
     #[serde(rename = "@vbr")]
     vbr: Option<bool>,
@@ -370,7 +403,8 @@ pub struct ExtendedBandwidth {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct ContentComponent {
     #[serde(rename = "@id")]
     id: Option<u32>,
@@ -393,7 +427,8 @@ pub struct ContentComponent {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct Latency {
     #[serde(rename = "@referenceId")]
     reference_id: Option<i32>,
@@ -405,7 +440,9 @@ pub struct Latency {
     min_latency: Option<i32>,
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+#[skip_serializing_none]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct PlaybackRate {
     #[serde(rename = "@max")]
     max_playback_rate: Option<f32>, // Real
@@ -414,7 +451,8 @@ pub struct PlaybackRate {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct OperatingQuality {
     #[serde(rename = "@mediaType")]
     media_type: Option<QualityMediaType>,
@@ -431,7 +469,8 @@ pub struct OperatingQuality {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct OperatingBandwidth {
     #[serde(rename = "@mediaType")]
     media_type: Option<BandwidthMediaType>,
@@ -443,7 +482,8 @@ pub struct OperatingBandwidth {
     target_bandwidth: Option<i32>,
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct ServiceDescription {
     #[serde(rename = "@id")]
     id: u32,
@@ -460,7 +500,8 @@ pub struct ServiceDescription {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct Subset {
     #[serde(rename = "@contains")]
     contains: UIntVector,
@@ -469,7 +510,8 @@ pub struct Subset {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct Preselection {
     #[serde(rename = "@id")]
     id: Option<NoWhitespace>,
@@ -554,7 +596,8 @@ pub struct Preselection {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
+#[builder(setter(into, strip_option), default)]
 pub struct Url {
     #[serde(rename = "@sourceURL")]
     pub source_url: Option<XsAnyURI>,
@@ -562,7 +605,8 @@ pub struct Url {
     pub range: Option<SingleByteRange>,
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
+#[builder(setter(into, strip_option), default)]
 #[serde(rename = "FCS")]
 pub struct Fcs {
     #[serde(rename = "@t")]
@@ -571,7 +615,8 @@ pub struct Fcs {
     pub duration: Option<u64>,
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
+#[builder(setter(into, strip_option), default)]
 #[serde(rename = "FailoverContent")]
 pub struct FailoverContent {
     #[serde(rename = "@valid")]
@@ -580,7 +625,8 @@ pub struct FailoverContent {
     pub fcs_list: Vec<Fcs>,
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
+#[builder(setter(into, strip_option), default)]
 #[serde(rename = "SegmentURL")]
 pub struct SegmentUrl {
     #[serde(rename = "@media")]

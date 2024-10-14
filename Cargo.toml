@@ -15,6 +15,8 @@ serde = { version = "1.0.210", features = ["derive"] }
 serde_with = { version = "3.11.0" }
 
 derive_builder = { version = "0.20.2" }
+strum = { version = "0.26.3" }
+strum_macros = { version = "0.26.4" }
 
 quick-xml = { version = "0.36.2", features = ["serialize"] }
 

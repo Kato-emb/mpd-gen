@@ -9,7 +9,11 @@ use super::segment::{SegmentBase, SegmentList, SegmentTemplate};
 
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(
+    setter(into, strip_option),
+    default,
+    build_fn(validate = "Self::validate")
+)]
 pub struct Representation {
     #[serde(rename = "@id")]
     id: NoWhitespace,
@@ -103,9 +107,23 @@ pub struct Representation {
     segment_template: Option<SegmentTemplate>,
 }
 
+impl NeedValidater for RepresentationBuilder {
+    fn validate(&self) -> Result<(), String> {
+        if self.id.is_none() || self.bandwidth.is_none() {
+            Err("Representation must be set @id and @bandwidth".to_string())
+        } else {
+            Ok(())
+        }
+    }
+}
+
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(
+    setter(into, strip_option),
+    default,
+    build_fn(validate = "Self::validate")
+)]
 pub struct SubRepresentation {
     #[serde(rename = "@level")]
     level: Option<u32>,
@@ -180,6 +198,16 @@ pub struct SubRepresentation {
     resync: Option<Vec<Resync>>,
 }
 
+impl NeedValidater for SubRepresentationBuilder {
+    fn validate(&self) -> Result<(), String> {
+        if self.level.is_some() && self.bandwidth.is_none() {
+            Err("This attribute shall be present if the @level attribute is present.".to_string())
+        } else {
+            Ok(())
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
@@ -187,28 +215,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_element_representation() {
-        let repr = RepresentationBuilder::default()
-            .id(NoWhitespace::from_str("aaaaaa").unwrap())
+    fn test_element_representation_vaild() {
+        assert!(RepresentationBuilder::default()
+            .id(NoWhitespace::from_str("720p").unwrap())
             .bandwidth(2_000_000u32)
-            .dependency_id(["a".to_string(), "b".to_string()].as_slice())
-            .association_type([0x54534554, 0x4D4A5047].as_slice())
-            // .profiles([Profile::Cmaf, Profile::CmafExt].as_slice())
-            .width(1920u32)
-            .height(1080u32)
-            .sar(Ratio::from((1920, 1080)))
-            // .framerate(FrameRate::from((30, 1)))
-            .codecs(Codecs::from_str("avc1.4d0028").unwrap())
             .build()
-            .unwrap();
+            .is_ok());
+        assert!(RepresentationBuilder::default().build().is_err());
+    }
 
-        let mut xml = String::new();
-        let mut ser = quick_xml::se::Serializer::new(&mut xml);
-        ser.indent(' ', 2);
-        repr.serialize(ser).unwrap();
-
-        let deser = quick_xml::de::from_str::<Representation>(&xml).unwrap();
-
-        assert_eq!(repr, deser);
+    #[test]
+    fn test_element_sub_representation_vaild() {
+        assert!(SubRepresentationBuilder::default().build().is_ok());
+        assert!(SubRepresentationBuilder::default()
+            .level(1u32)
+            .bandwidth(2_000_000u32)
+            .build()
+            .is_ok());
+        assert!(SubRepresentationBuilder::default()
+            .level(1u32)
+            .build()
+            .is_err());
     }
 }

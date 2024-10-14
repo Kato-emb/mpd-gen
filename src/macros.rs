@@ -1,5 +1,4 @@
-/// s
-///
+/// Delayed initialization macro for pattern matching with Regex
 #[macro_export]
 macro_rules! define_regex {
     ($name:ident, $fmt:expr, $($arg:expr),*) => {

@@ -5,7 +5,7 @@ use num::{integer::gcd, rational, BigInt};
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
-use crate::{entity::*, error::MpdError, scheme::Profile, Result};
+use crate::{definition::Profile, entity::*, error::MpdError, Result};
 
 /// xlink:acture
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -181,11 +181,25 @@ impl FromStr for XsDateTime {
     }
 }
 
+impl From<DateTime<Utc>> for XsDateTime {
+    fn from(value: DateTime<Utc>) -> Self {
+        Self { value }
+    }
+}
+
 /// xs:duration
 #[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq)]
 pub struct XsDuration {
     value: std::time::Duration,
     is_negative: bool,
+}
+
+impl Deref for XsDuration {
+    type Target = std::time::Duration;
+
+    fn deref(&self) -> &Self::Target {
+        &self.value
+    }
 }
 
 impl fmt::Display for XsDuration {
@@ -522,7 +536,35 @@ impl FromStr for SingleByteRange {
             None
         };
 
+        if last.is_some_and(|last| last < first) {
+            return Err(MpdError::UnmatchedPattern);
+        }
+
         Ok(Self { first, last })
+    }
+}
+
+impl From<u32> for SingleByteRange {
+    fn from(value: u32) -> Self {
+        Self {
+            first: value,
+            last: None,
+        }
+    }
+}
+
+impl TryFrom<(u32, u32)> for SingleByteRange {
+    type Error = MpdError;
+
+    fn try_from(value: (u32, u32)) -> Result<Self> {
+        if value.0 > value.1 {
+            return Err(MpdError::UnmatchedPattern);
+        }
+
+        Ok(Self {
+            first: value.0,
+            last: Some(value.1),
+        })
     }
 }
 
@@ -792,7 +834,7 @@ pub enum Source {
     #[default]
     Content,
     Statistics,
-    // @source_descriptionが必要
+    // need @source_description
     Other,
 }
 
@@ -842,6 +884,14 @@ pub enum PresentationType {
 #[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
 pub struct ListOfProfiles {
     value: Vec<Profile>,
+}
+
+impl Deref for ListOfProfiles {
+    type Target = Vec<Profile>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.value
+    }
 }
 
 impl fmt::Display for ListOfProfiles {
@@ -1208,6 +1258,7 @@ mod tests {
     #[test]
     fn test_types_single_byte_range_invalid() {
         assert!(SingleByteRange::from_str("-499").is_err());
+        assert!(SingleByteRange::from_str("500-499").is_err());
         assert!(SingleByteRange::from_str("0-499,500-999").is_err());
         assert!(SingleByteRange::from_str("0-499,-1").is_err());
         assert!(SingleByteRange::from_str("-").is_err());
