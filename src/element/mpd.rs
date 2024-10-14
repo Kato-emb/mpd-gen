@@ -6,10 +6,7 @@ use crate::definition::*;
 use crate::element::*;
 use crate::types::*;
 
-use super::{
-    period::Period, InitializationSet, LeapSecondInformation, Metrics, PatchLocation,
-    ProgramInformation, UIntVWithID,
-};
+use crate::element::period::Period;
 
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
