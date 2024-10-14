@@ -223,7 +223,7 @@ impl fmt::Display for XsDuration {
         let minutes = seconds / 60;
         seconds = seconds % 60;
 
-        if minutes != 0 {
+        if minutes != 0 || hours != 0 {
             output.push_str(&format!("{minutes}M"));
         }
 
@@ -234,7 +234,7 @@ impl fmt::Display for XsDuration {
             }
 
             output.push_str(&format!("{}.{}S", seconds, nanos));
-        } else if seconds != 0 {
+        } else {
             output.push_str(&format!("{}S", seconds));
         };
 
@@ -307,12 +307,14 @@ impl FromStr for XsDuration {
                         flag |= 0b0010_0000;
                     }
                     'S' if flag >= 0b0000_1000 && flag < 0b0100_0000 => {
-                        duration += if value.contains('.') {
+                        duration += if value.contains('.') && !value.ends_with('.') {
                             let nanos = (value.parse::<f64>()? * 1_000_000_000.0) as u64;
                             std::time::Duration::from_nanos(nanos)
                         } else {
                             std::time::Duration::from_secs(value.parse::<u64>()?)
                         };
+
+                        flag |= 0b0100_0000;
                     }
                     _ => return Err(MpdError::UnmatchedPattern),
                 }
@@ -1168,16 +1170,22 @@ mod tests {
         assert_eq!(&duration.to_string(), "PT21972H35M30S");
 
         let duration = XsDuration::from_str("P20M").unwrap();
-        assert_eq!(&duration.to_string(), "PT14400H");
+        assert_eq!(&duration.to_string(), "PT14400H0M0S");
 
         let duration = XsDuration::from_str("PT20M").unwrap();
-        assert_eq!(&duration.to_string(), "PT20M");
+        assert_eq!(&duration.to_string(), "PT20M0S");
 
         let duration = XsDuration::from_str("PT1M30.5S").unwrap();
         assert_eq!(&duration.to_string(), "PT1M30.5S");
 
         let duration = XsDuration::from_str("-P2DT1M30.123456789S").unwrap();
         assert_eq!(&duration.to_string(), "-PT48H1M30.123456789S");
+
+        let duration = XsDuration::from_str("PT1H0M10S").unwrap();
+        assert_eq!(&duration.to_string(), "PT1H0M10S");
+
+        let duration = XsDuration::from_str("PT0S").unwrap();
+        assert_eq!(&duration.to_string(), "PT0S");
     }
 
     #[test]
