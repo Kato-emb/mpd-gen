@@ -12,7 +12,7 @@ use super::{
 
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct AdaptationSet {
     #[serde(rename = "@xlink:href")]
     href: Option<String>,

@@ -7,7 +7,7 @@ use crate::types::*;
 
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct SegmentBase {
     #[serde(rename = "@timescale")]
     timescale: Option<u32>,
@@ -39,7 +39,7 @@ pub struct SegmentBase {
 
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct SegmentList {
     #[serde(rename = "@xlink:href")]
     href: Option<String>,
@@ -87,7 +87,7 @@ pub struct SegmentList {
 
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct SegmentTemplate {
     #[serde(rename = "@duration")]
     duration: Option<u32>,
@@ -137,7 +137,7 @@ pub struct SegmentTemplate {
 
 /// Attribute name is `SegmentTimeline`
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct SegmentTimeline {
     #[builder(setter(custom))]
     #[serde(rename = "S", skip_serializing_if = "Vec::is_empty", default)]

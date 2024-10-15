@@ -18,7 +18,7 @@ pub trait CustomValidate {
 /// Program Information
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct ProgramInformation {
     #[serde(rename = "@lang")]
     lang: Option<XsLanguage>,
@@ -35,7 +35,7 @@ pub struct ProgramInformation {
 /// Patch Location Type
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct PatchLocation {
     #[serde(rename = "$text")]
     base: XsAnyURI,
@@ -46,7 +46,7 @@ pub struct PatchLocation {
 /// Initialization Set
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct InitializationSet {
     #[serde(rename = "@xlink:href", alias = "href")]
     href: Option<String>,
@@ -176,7 +176,7 @@ impl CustomValidate for UIntVWithIDBuilder {
 /// Metrics Range
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct MetricsRange {
     #[serde(rename = "@starttime")]
     start_time: Option<XsDuration>,
@@ -281,7 +281,7 @@ impl CustomValidate for DescriptorBuilder {
 ///
 /// refとref_idはどちらか一方しか存在できない
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct ContentProtection {
     #[serde(flatten)]
     descriptor: Descriptor,
@@ -295,7 +295,7 @@ pub struct ContentProtection {
 
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct Event {
     #[serde(rename = "@presentationTime")]
     presentation_time: Option<u64>,
@@ -402,7 +402,7 @@ impl CustomValidate for RandomAccessBuilder {
 
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct Label {
     #[serde(rename = "@id")]
     id: Option<u32>,
@@ -531,7 +531,7 @@ impl CustomValidate for ContentPopularityRateBuilder {
 
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct Resync {
     #[serde(rename = "@type")]
     r#type: Option<StreamAccessPoint>,
@@ -547,7 +547,7 @@ pub struct Resync {
 
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct BaseURL {
     #[serde(rename = "$text")]
     base: XsAnyURI,
@@ -592,7 +592,7 @@ impl CustomValidate for ModelPairBuilder {
 
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct ExtendedBandwidth {
     #[serde(rename = "@vbr")]
     vbr: Option<bool>,
@@ -602,7 +602,7 @@ pub struct ExtendedBandwidth {
 
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct ContentComponent {
     #[serde(rename = "@id")]
     id: Option<u32>,
@@ -626,7 +626,7 @@ pub struct ContentComponent {
 
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct Latency {
     #[serde(rename = "@referenceId")]
     reference_id: Option<i32>,
@@ -640,7 +640,7 @@ pub struct Latency {
 
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct PlaybackRate {
     #[serde(rename = "@max")]
     max_playback_rate: Option<f32>, // Real
@@ -650,7 +650,7 @@ pub struct PlaybackRate {
 
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct OperatingQuality {
     #[serde(rename = "@mediaType")]
     media_type: Option<QualityMediaType>,
@@ -668,7 +668,7 @@ pub struct OperatingQuality {
 
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct OperatingBandwidth {
     #[serde(rename = "@mediaType")]
     media_type: Option<BandwidthMediaType>,
@@ -842,7 +842,7 @@ impl CustomValidate for PreselectionBuilder {
 
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct Url {
     #[serde(rename = "@sourceURL")]
     pub source_url: Option<XsAnyURI>,
@@ -901,7 +901,7 @@ impl CustomValidate for FailoverContentBuilder {
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
-#[builder(setter(into, strip_option), default)]
+#[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 #[serde(rename = "SegmentURL")]
 pub struct SegmentUrl {
     #[serde(rename = "@media")]
