@@ -1,4 +1,4 @@
-use std::{io::Write, str::FromStr};
+use std::str::FromStr;
 
 use mpdgen::{
     AdaptationSetBuilder, BaseURLBuilder, Codecs, ContentType, DescriptorBuilder, MPDBuilder,
@@ -6,7 +6,6 @@ use mpdgen::{
     SegmentTemplateBuilder, SegmentTimelineBuilder, StreamAccessPoint, VideoScan,
     DASH_DVB_EXTENTION, ROLE_SCHEME,
 };
-use serde::Serialize;
 
 fn main() {
     let segment = SegmentBuilder::default()
@@ -79,13 +78,6 @@ fn main() {
 
     println!("{:?}", mpd);
 
-    let mut xml = String::new();
-    let mut ser = quick_xml::se::Serializer::new(&mut xml);
-    ser.indent(' ', 2);
-    mpd.serialize(ser).unwrap();
-
-    let xml = format!("<?xml version=\"1.0\" encoding=\"utf-8\">\n{xml}");
-
     let mut file = std::fs::File::create("manifest.mpd").unwrap();
-    file.write_all(xml.as_bytes()).unwrap();
+    mpd.write(&mut file).unwrap();
 }

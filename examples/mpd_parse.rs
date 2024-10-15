@@ -1,12 +1,12 @@
-use std::io::Write;
+use std::io::{Cursor, Write};
 
 use mpdgen::MPD;
 use serde::Serialize;
 
 fn main() {
     let data = std::fs::read("manifest.mpd").unwrap();
-    let mpd = String::from_utf8(data).unwrap();
-    let mpd: MPD = quick_xml::de::from_str(&mpd).unwrap();
+    let mut reader = Cursor::new(data);
+    let mpd = MPD::read(&mut reader).unwrap();
     // Missing attribute @xsi:chemaLocation
     println!("{:?}", mpd);
 
