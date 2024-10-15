@@ -4,6 +4,8 @@ use strum_macros::{Display, EnumString};
 
 use crate::{entity::*, error::MpdError, Result};
 
+pub const XML_DECLARATION: &str = r#"<?xml version="1.0" encoding="UTF-8"?>"#;
+
 pub const MPD_NAMESPACE: &str = "urn:mpeg:dash:schema:mpd:2011";
 pub const XML_LINKING_LANGUAGE: &str = "http://www.w3.org/1999/xlink";
 pub const MPD_SCHEMA_FILE: &str = "DASH-MPD.xsd";

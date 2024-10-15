@@ -1,3 +1,7 @@
+use std::io::BufRead;
+use std::io::Write;
+use std::result;
+
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -7,6 +11,7 @@ use crate::element::*;
 use crate::types::*;
 
 use crate::element::period::Period;
+use crate::Result;
 
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
@@ -96,7 +101,7 @@ pub struct MPD {
 }
 
 impl NeedValidater for MPDBuilder {
-    fn validate(&self) -> Result<(), String> {
+    fn validate(&self) -> result::Result<(), String> {
         if !self
             .profiles
             .as_ref()
@@ -114,6 +119,28 @@ impl NeedValidater for MPDBuilder {
                 return Err("For @type='dynamic', @availabilityStartTime and @publishTime attribute shall be present".to_string());
             }
         }
+
+        Ok(())
+    }
+}
+
+impl MPD {
+    pub fn read<R: BufRead>(reader: &mut R) -> Result<MPD> {
+        let mpd: MPD = quick_xml::de::from_reader(reader)?;
+
+        Ok(mpd)
+    }
+
+    pub fn write<W: Write>(&self, writer: &mut W) -> Result<()> {
+        writer.write_all(XML_DECLARATION.as_bytes())?;
+        writer.write_all("\n".as_bytes())?;
+
+        let mut xml = String::new();
+        let mut ser = quick_xml::se::Serializer::new(&mut xml);
+        ser.indent(' ', 2);
+        self.serialize(ser)?;
+
+        writer.write_all(xml.as_bytes())?;
 
         Ok(())
     }
