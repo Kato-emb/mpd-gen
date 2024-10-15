@@ -9,9 +9,10 @@ use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
 use crate::types::*;
+use crate::{MpdError, Result};
 
-pub trait NeedValidater {
-    fn validate(&self) -> Result<(), String>;
+pub trait CustomValidate {
+    fn validate(&self) -> Result<()>;
 }
 
 /// Program Information
@@ -147,7 +148,7 @@ pub struct InitializationSet {
 #[builder(
     setter(into, strip_option),
     default,
-    build_fn(validate = "Self::validate")
+    build_fn(validate = "Self::validate", error = "MpdError")
 )]
 pub struct UIntVWithID {
     #[serde(rename = "$text")]
@@ -160,10 +161,12 @@ pub struct UIntVWithID {
     content_type: Option<ContentType>,
 }
 
-impl NeedValidater for UIntVWithIDBuilder {
-    fn validate(&self) -> Result<(), String> {
+impl CustomValidate for UIntVWithIDBuilder {
+    fn validate(&self) -> Result<()> {
         if self.id.is_none() {
-            Err("Must be set a unique unsigned integer identifier".to_string())
+            Err(crate::MpdError::ValidationError(
+                "Must be set a unique unsigned integer identifier",
+            ))
         } else {
             Ok(())
         }
@@ -187,7 +190,7 @@ pub struct MetricsRange {
 #[builder(
     setter(into, strip_option),
     default,
-    build_fn(validate = "Self::validate")
+    build_fn(validate = "Self::validate", error = "MpdError")
 )]
 pub struct Metrics {
     #[serde(rename = "@metrics")]
@@ -198,12 +201,16 @@ pub struct Metrics {
     reporting: Vec<Descriptor>,
 }
 
-impl NeedValidater for MetricsBuilder {
-    fn validate(&self) -> Result<(), String> {
+impl CustomValidate for MetricsBuilder {
+    fn validate(&self) -> Result<()> {
         if self.metrics.is_none() {
-            Err("Metrics must be set @metrics attribute".to_string())
+            Err(MpdError::ValidationError(
+                "Metrics must be set @metrics attribute",
+            ))
         } else if !self.reporting.as_ref().is_some_and(|rep| !rep.is_empty()) {
-            Err("Metrics must be set Reporting element longer than 0".to_string())
+            Err(MpdError::ValidationError(
+                "Metrics must be set Reporting element longer than 0",
+            ))
         } else {
             Ok(())
         }
@@ -216,7 +223,7 @@ impl NeedValidater for MetricsBuilder {
 #[builder(
     setter(into, strip_option),
     default,
-    build_fn(validate = "Self::validate")
+    build_fn(validate = "Self::validate", error = "MpdError")
 )]
 pub struct LeapSecondInformation {
     #[serde(rename = "@availabilityStartLeapOffset")]
@@ -227,10 +234,12 @@ pub struct LeapSecondInformation {
     next_leap_change_time: Option<XsDateTime>,
 }
 
-impl NeedValidater for LeapSecondInformationBuilder {
-    fn validate(&self) -> Result<(), String> {
+impl CustomValidate for LeapSecondInformationBuilder {
+    fn validate(&self) -> Result<()> {
         if self.availability_start_leap_offset.is_none() {
-            Err("LeapSecondInformation must be set @availabilityStartLeapOffset".to_string())
+            Err(MpdError::ValidationError(
+                "LeapSecondInformation must be set @availabilityStartLeapOffset",
+            ))
         } else {
             Ok(())
         }
@@ -245,7 +254,7 @@ impl NeedValidater for LeapSecondInformationBuilder {
 #[builder(
     setter(into, strip_option),
     default,
-    build_fn(validate = "Self::validate")
+    build_fn(validate = "Self::validate", error = "MpdError")
 )]
 pub struct Descriptor {
     #[serde(rename = "@schemeIdUri")]
@@ -256,10 +265,12 @@ pub struct Descriptor {
     id: Option<String>,
 }
 
-impl NeedValidater for DescriptorBuilder {
-    fn validate(&self) -> Result<(), String> {
+impl CustomValidate for DescriptorBuilder {
+    fn validate(&self) -> Result<()> {
         if self.scheme_id_uri.is_none() {
-            Err("Descriptor must be set @schemeIdUri".to_string())
+            Err(MpdError::ValidationError(
+                "Descriptor must be set @schemeIdUri",
+            ))
         } else {
             Ok(())
         }
@@ -304,7 +315,7 @@ pub struct Event {
 #[builder(
     setter(into, strip_option),
     default,
-    build_fn(validate = "Self::validate")
+    build_fn(validate = "Self::validate", error = "MpdError")
 )]
 pub struct EventStream {
     #[serde(rename = "@xlink:href")]
@@ -323,10 +334,12 @@ pub struct EventStream {
     events: Option<Vec<Event>>,
 }
 
-impl NeedValidater for EventStreamBuilder {
-    fn validate(&self) -> Result<(), String> {
+impl CustomValidate for EventStreamBuilder {
+    fn validate(&self) -> Result<()> {
         if self.scheme_id_uri.is_none() {
-            Err("EventStream must be set @schemeIdUri".to_string())
+            Err(MpdError::ValidationError(
+                "EventStream must be set @schemeIdUri",
+            ))
         } else {
             Ok(())
         }
@@ -338,7 +351,7 @@ impl NeedValidater for EventStreamBuilder {
 #[builder(
     setter(into, strip_option),
     default,
-    build_fn(validate = "Self::validate")
+    build_fn(validate = "Self::validate", error = "MpdError")
 )]
 pub struct Switching {
     #[serde(rename = "@interval")]
@@ -347,10 +360,10 @@ pub struct Switching {
     r#type: Option<SwitchingType>,
 }
 
-impl NeedValidater for SwitchingBuilder {
-    fn validate(&self) -> Result<(), String> {
+impl CustomValidate for SwitchingBuilder {
+    fn validate(&self) -> Result<()> {
         if self.interval.is_none() {
-            Err("Switching must be set @interval".to_string())
+            Err(MpdError::ValidationError("Switching must be set @interval"))
         } else {
             Ok(())
         }
@@ -362,7 +375,7 @@ impl NeedValidater for SwitchingBuilder {
 #[builder(
     setter(into, strip_option),
     default,
-    build_fn(validate = "Self::validate")
+    build_fn(validate = "Self::validate", error = "MpdError")
 )]
 pub struct RandomAccess {
     #[serde(rename = "@interval")]
@@ -375,10 +388,12 @@ pub struct RandomAccess {
     bandwidth: Option<u32>,
 }
 
-impl NeedValidater for RandomAccessBuilder {
-    fn validate(&self) -> Result<(), String> {
+impl CustomValidate for RandomAccessBuilder {
+    fn validate(&self) -> Result<()> {
         if self.interval.is_none() {
-            Err("RandomAccess must be set @interval".to_string())
+            Err(MpdError::ValidationError(
+                "RandomAccess must be set @interval",
+            ))
         } else {
             Ok(())
         }
@@ -402,7 +417,7 @@ pub type GroupLavel = Label;
 #[builder(
     setter(into, strip_option),
     default,
-    build_fn(validate = "Self::validate")
+    build_fn(validate = "Self::validate", error = "MpdError")
 )]
 pub struct ProducerReferenceTime {
     #[serde(rename = "@id")]
@@ -421,23 +436,21 @@ pub struct ProducerReferenceTime {
     utc_timing: Option<Descriptor>,
 }
 
-impl NeedValidater for ProducerReferenceTimeBuilder {
-    fn validate(&self) -> Result<(), String> {
+impl CustomValidate for ProducerReferenceTimeBuilder {
+    fn validate(&self) -> Result<()> {
         if self.id.is_none() || self.wall_clock_time.is_none() || self.presentation_time.is_none() {
-            Err(
-                "ProducerReferenceTime must be set @id, @wallClockTime and @presentationTime"
-                    .to_string(),
-            )
+            Err(MpdError::ValidationError(
+                "ProducerReferenceTime must be set @id, @wallClockTime and @presentationTime",
+            ))
         } else if self
             .r#type
             .as_ref()
             .is_some_and(|typ| typ == &Some(ProducerReferenceTimeType::Application))
             && self.application_scheme.is_none()
         {
-            Err(
-                "If the @type is set other than application, this attribute shall not be present"
-                    .to_string(),
-            )
+            Err(MpdError::ValidationError(
+                "If the @type is set other than application, this attribute shall not be present",
+            ))
         } else {
             Ok(())
         }
@@ -449,7 +462,7 @@ impl NeedValidater for ProducerReferenceTimeBuilder {
 #[builder(
     setter(into, strip_option),
     default,
-    build_fn(validate = "Self::validate")
+    build_fn(validate = "Self::validate", error = "MpdError")
 )]
 pub struct PopularityRate {
     // 1 ~ 100の範囲指定
@@ -461,17 +474,21 @@ pub struct PopularityRate {
     repeat_count: Option<i32>,
 }
 
-impl NeedValidater for PopularityRateBuilder {
-    fn validate(&self) -> Result<(), String> {
+impl CustomValidate for PopularityRateBuilder {
+    fn validate(&self) -> Result<()> {
         match self.popularity_rate.as_ref() {
             Some(rate) => {
                 if !(1..=100).contains(rate) {
-                    Err("The value shall be in the range of 1 to 100.".to_string())
+                    Err(MpdError::ValidationError(
+                        "The value shall be in the range of 1 to 100.",
+                    ))
                 } else {
                     Ok(())
                 }
             }
-            None => Err("PopularityRate must be set @popularityRate".to_string()),
+            None => Err(MpdError::ValidationError(
+                "PopularityRate must be set @popularityRate",
+            )),
         }
     }
 }
@@ -481,7 +498,7 @@ impl NeedValidater for PopularityRateBuilder {
 #[builder(
     setter(into, strip_option),
     default,
-    build_fn(validate = "Self::validate")
+    build_fn(validate = "Self::validate", error = "MpdError")
 )]
 pub struct ContentPopularityRate {
     #[serde(rename = "@source")]
@@ -492,16 +509,20 @@ pub struct ContentPopularityRate {
     popularity_rates: Vec<PopularityRate>,
 }
 
-impl NeedValidater for ContentPopularityRateBuilder {
-    fn validate(&self) -> Result<(), String> {
+impl CustomValidate for ContentPopularityRateBuilder {
+    fn validate(&self) -> Result<()> {
         if self.source.is_none() {
-            Err("ContentPopularityRate must be set @source".to_string())
+            Err(MpdError::ValidationError(
+                "ContentPopularityRate must be set @source",
+            ))
         } else if !self
             .popularity_rates
             .as_ref()
             .is_some_and(|rates| !rates.is_empty())
         {
-            Err("ContentPopularityRate must be set PR longer than 0".to_string())
+            Err(MpdError::ValidationError(
+                "ContentPopularityRate must be set PR longer than 0",
+            ))
         } else {
             Ok(())
         }
@@ -548,7 +569,7 @@ pub struct BaseURL {
 #[builder(
     setter(into, strip_option),
     default,
-    build_fn(validate = "Self::validate")
+    build_fn(validate = "Self::validate", error = "MpdError")
 )]
 pub struct ModelPair {
     #[serde(rename = "@bufferTime")]
@@ -557,10 +578,12 @@ pub struct ModelPair {
     bandwidth: u32,
 }
 
-impl NeedValidater for ModelPairBuilder {
-    fn validate(&self) -> Result<(), String> {
+impl CustomValidate for ModelPairBuilder {
+    fn validate(&self) -> Result<()> {
         if self.buffer_time.is_none() || self.bandwidth.is_none() {
-            Err("ModelPair must be set @bufferTime and @bandwidth".to_string())
+            Err(MpdError::ValidationError(
+                "ModelPair must be set @bufferTime and @bandwidth",
+            ))
         } else {
             Ok(())
         }
@@ -662,7 +685,7 @@ pub struct OperatingBandwidth {
 #[builder(
     setter(into, strip_option),
     default,
-    build_fn(validate = "Self::validate")
+    build_fn(validate = "Self::validate", error = "MpdError")
 )]
 pub struct ServiceDescription {
     #[serde(rename = "@id")]
@@ -679,10 +702,12 @@ pub struct ServiceDescription {
     operating_bandwidth: Option<Vec<OperatingBandwidth>>,
 }
 
-impl NeedValidater for ServiceDescriptionBuilder {
-    fn validate(&self) -> Result<(), String> {
+impl CustomValidate for ServiceDescriptionBuilder {
+    fn validate(&self) -> Result<()> {
         if self.id.is_none() {
-            Err("ServiceDescription must be set @id".to_string())
+            Err(MpdError::ValidationError(
+                "ServiceDescription must be set @id",
+            ))
         } else {
             Ok(())
         }
@@ -694,7 +719,7 @@ impl NeedValidater for ServiceDescriptionBuilder {
 #[builder(
     setter(into, strip_option),
     default,
-    build_fn(validate = "Self::validate")
+    build_fn(validate = "Self::validate", error = "MpdError")
 )]
 pub struct Subset {
     #[serde(rename = "@contains")]
@@ -703,10 +728,10 @@ pub struct Subset {
     id: Option<String>,
 }
 
-impl NeedValidater for SubsetBuilder {
-    fn validate(&self) -> Result<(), String> {
+impl CustomValidate for SubsetBuilder {
+    fn validate(&self) -> Result<()> {
         if self.contains.is_none() {
-            Err("Subset must be set @contains".to_string())
+            Err(MpdError::ValidationError("Subset must be set @contains"))
         } else {
             Ok(())
         }
@@ -718,7 +743,7 @@ impl NeedValidater for SubsetBuilder {
 #[builder(
     setter(into, strip_option),
     default,
-    build_fn(validate = "Self::validate")
+    build_fn(validate = "Self::validate", error = "MpdError")
 )]
 pub struct Preselection {
     #[serde(rename = "@id")]
@@ -803,10 +828,12 @@ pub struct Preselection {
     // common attributes elements
 }
 
-impl NeedValidater for PreselectionBuilder {
-    fn validate(&self) -> Result<(), String> {
+impl CustomValidate for PreselectionBuilder {
+    fn validate(&self) -> Result<()> {
         if self.preselection_components.is_none() {
-            Err("Preselection must be set @preselectionComponents".to_string())
+            Err(MpdError::ValidationError(
+                "Preselection must be set @preselectionComponents",
+            ))
         } else {
             Ok(())
         }
@@ -828,7 +855,7 @@ pub struct Url {
 #[builder(
     setter(into, strip_option),
     default,
-    build_fn(validate = "Self::validate")
+    build_fn(validate = "Self::validate", error = "MpdError")
 )]
 pub struct Fcs {
     #[serde(rename = "@t")]
@@ -837,10 +864,10 @@ pub struct Fcs {
     pub duration: Option<u64>,
 }
 
-impl NeedValidater for FcsBuilder {
-    fn validate(&self) -> Result<(), String> {
+impl CustomValidate for FcsBuilder {
+    fn validate(&self) -> Result<()> {
         if self.start_time.is_none() {
-            Err("FCS must be set @t".to_string())
+            Err(MpdError::ValidationError("FCS must be set @t"))
         } else {
             Ok(())
         }
@@ -852,7 +879,7 @@ impl NeedValidater for FcsBuilder {
 #[builder(
     setter(into, strip_option),
     default,
-    build_fn(validate = "Self::validate")
+    build_fn(validate = "Self::validate", error = "MpdError")
 )]
 pub struct FailoverContent {
     #[serde(rename = "@valid")]
@@ -861,10 +888,12 @@ pub struct FailoverContent {
     pub fcs_list: Vec<Fcs>,
 }
 
-impl NeedValidater for FailoverContentBuilder {
-    fn validate(&self) -> Result<(), String> {
+impl CustomValidate for FailoverContentBuilder {
+    fn validate(&self) -> Result<()> {
         if !self.fcs_list.as_ref().is_some_and(|list| !list.is_empty()) {
-            Err("FailoverContent must be set FCS longer than 0".to_string())
+            Err(MpdError::ValidationError(
+                "FailoverContent must be set FCS longer than 0",
+            ))
         } else {
             Ok(())
         }

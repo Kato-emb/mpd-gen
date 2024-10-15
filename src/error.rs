@@ -7,6 +7,10 @@ pub enum MpdError {
     #[error("Unmatched the pattern defined in the XML schema.")]
     UnmatchedPattern,
     #[error("{0}")]
+    UninitializedFieldError(#[from] derive_builder::UninitializedFieldError),
+    #[error("{0}")]
+    ValidationError(&'static str),
+    #[error("{0}")]
     IoError(#[from] std::io::Error),
     #[error("{0}")]
     ParseIntError(#[from] std::num::ParseIntError),

@@ -165,7 +165,7 @@ impl SegmentTimelineBuilder {
 #[builder(
     setter(into, strip_option),
     default,
-    build_fn(validate = "Self::validate")
+    build_fn(validate = "Self::validate", error = "MpdError")
 )]
 #[serde(rename = "S")]
 pub struct Segment {
@@ -181,10 +181,12 @@ pub struct Segment {
     repeat_count: Option<XsInteger>,
 }
 
-impl NeedValidater for SegmentBuilder {
-    fn validate(&self) -> Result<(), String> {
+impl CustomValidate for SegmentBuilder {
+    fn validate(&self) -> Result<()> {
         if self.duration == None || self.duration == Some(0) {
-            Err("Segment duration must be set longer than 0".to_string())
+            Err(MpdError::ValidationError(
+                "Segment duration must be set longer than 0",
+            ))
         } else {
             Ok(())
         }

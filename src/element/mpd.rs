@@ -1,6 +1,5 @@
 use std::io::BufRead;
 use std::io::Write;
-use std::result;
 
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
@@ -18,7 +17,7 @@ use crate::Result;
 #[builder(
     setter(into, strip_option),
     default,
-    build_fn(validate = "Self::validate")
+    build_fn(validate = "Self::validate", error = "MpdError")
 )]
 pub struct MPD {
     #[serde(rename = "@xmlns")]
@@ -100,14 +99,14 @@ pub struct MPD {
     leap_second_information: Option<LeapSecondInformation>,
 }
 
-impl NeedValidater for MPDBuilder {
-    fn validate(&self) -> result::Result<(), String> {
+impl CustomValidate for MPDBuilder {
+    fn validate(&self) -> Result<()> {
         if !self
             .profiles
             .as_ref()
             .is_some_and(|profiles| !profiles.is_empty())
         {
-            return Err("MPD must be set profiles.".to_string());
+            return Err(MpdError::ValidationError("MPD must be set profiles."));
         }
 
         if self
@@ -116,7 +115,7 @@ impl NeedValidater for MPDBuilder {
             .is_some_and(|typ| typ == &Some(PresentationType::Dynamic))
         {
             if self.availability_start_time.is_none() || self.publish_time.is_none() {
-                return Err("For @type='dynamic', @availabilityStartTime and @publishTime attribute shall be present".to_string());
+                return Err(MpdError::ValidationError("For @type='dynamic', @availabilityStartTime and @publishTime attribute shall be present"));
             }
         }
 

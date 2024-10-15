@@ -12,7 +12,7 @@ use super::segment::{SegmentBase, SegmentList, SegmentTemplate};
 #[builder(
     setter(into, strip_option),
     default,
-    build_fn(validate = "Self::validate")
+    build_fn(validate = "Self::validate", error = "MpdError")
 )]
 pub struct Representation {
     #[serde(rename = "@id")]
@@ -107,10 +107,12 @@ pub struct Representation {
     segment_template: Option<SegmentTemplate>,
 }
 
-impl NeedValidater for RepresentationBuilder {
-    fn validate(&self) -> Result<(), String> {
+impl CustomValidate for RepresentationBuilder {
+    fn validate(&self) -> Result<()> {
         if self.id.is_none() || self.bandwidth.is_none() {
-            Err("Representation must be set @id and @bandwidth".to_string())
+            Err(MpdError::ValidationError(
+                "Representation must be set @id and @bandwidth",
+            ))
         } else {
             Ok(())
         }
@@ -122,7 +124,7 @@ impl NeedValidater for RepresentationBuilder {
 #[builder(
     setter(into, strip_option),
     default,
-    build_fn(validate = "Self::validate")
+    build_fn(validate = "Self::validate", error = "MpdError")
 )]
 pub struct SubRepresentation {
     #[serde(rename = "@level")]
@@ -198,10 +200,12 @@ pub struct SubRepresentation {
     resync: Option<Vec<Resync>>,
 }
 
-impl NeedValidater for SubRepresentationBuilder {
-    fn validate(&self) -> Result<(), String> {
+impl CustomValidate for SubRepresentationBuilder {
+    fn validate(&self) -> Result<()> {
         if self.level.is_some() && self.bandwidth.is_none() {
-            Err("This attribute shall be present if the @level attribute is present.".to_string())
+            Err(MpdError::ValidationError(
+                "This attribute shall be present if the @level attribute is present.",
+            ))
         } else {
             Ok(())
         }
