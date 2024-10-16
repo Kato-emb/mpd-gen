@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use mpdgen::{
+use mpd_gen::{
     AdaptationSetBuilder, BaseURLBuilder, Codecs, ContentType, DescriptorBuilder, MPDBuilder,
     NoWhitespace, PeriodBuilder, PresentationType, Profile, RepresentationBuilder, SegmentBuilder,
     SegmentTemplateBuilder, SegmentTimelineBuilder, StreamAccessPoint, VideoScan,

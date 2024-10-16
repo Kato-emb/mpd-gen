@@ -1,6 +1,6 @@
 use std::io::{Cursor, Write};
 
-use mpdgen::MPD;
+use mpd_gen::MPD;
 use serde::Serialize;
 
 fn main() {
