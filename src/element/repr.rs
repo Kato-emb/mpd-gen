@@ -107,6 +107,16 @@ pub struct Representation {
     segment_template: Option<SegmentTemplate>,
 }
 
+impl Representation {
+    pub fn id(&self) -> String {
+        self.id.to_string()
+    }
+
+    pub fn bandwidth(&self) -> u32 {
+        self.bandwidth
+    }
+}
+
 impl CustomValidate for RepresentationBuilder {
     fn validate(&self) -> Result<()> {
         if self.id.is_none() || self.bandwidth.is_none() {
