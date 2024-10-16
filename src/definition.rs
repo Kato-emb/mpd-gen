@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use strum_macros::{Display, EnumString};
 
-use crate::{entity::*, error::MpdError, Result};
+use crate::{define_regex, entity::*, error::MpdError, Result};
 
 pub const XML_DECLARATION: &str = r#"<?xml version="1.0" encoding="UTF-8"?>"#;
 
@@ -78,6 +78,25 @@ impl FromStr for Profile {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash, EnumString, Display)]
+pub enum Identifier {
+    #[strum(serialize = "$RepresentationID$")]
+    RepresentationID,
+    #[strum(serialize = "$Number$")]
+    Number,
+    #[strum(serialize = "$Bandwidth$")]
+    Bandwidth,
+    #[strum(serialize = "$Time$")]
+    Time,
+    #[strum(serialize = "$SubNumber$")]
+    SubNumber,
+}
+
+define_regex!(
+    PATTERN_URL_TEMPLATE,
+    r"(?P<identifier>\$RepresentationID\$|\$Number\$|\$Bandwidth\$|\$Time\$|\$SubNumber\$)",
+);
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -98,5 +117,32 @@ mod tests {
         let input = "https://example.com";
         let profile = Profile::from_str(&input).unwrap();
         assert_eq!(profile, Profile::Other(input.to_string()));
+    }
+
+    #[test]
+    fn test_definition_url_template_pattern_matching() {
+        let input = format!(
+            "{}/{}/{}.cmfv",
+            Identifier::RepresentationID,
+            Identifier::Bandwidth,
+            Identifier::Time
+        );
+
+        let replace_str = PATTERN_URL_TEMPLATE
+            .replace_all(&input, |caps: &regex::Captures| {
+                if let Some(m) = caps.name("identifier") {
+                    match Identifier::from_str(m.as_str()) {
+                        Ok(Identifier::RepresentationID) => return "720p".to_string(),
+                        Ok(Identifier::Bandwidth) => return "2000000".to_string(),
+                        Ok(Identifier::Time) => return "1000".to_string(),
+                        _ => {}
+                    }
+                }
+
+                caps.get(0).unwrap().as_str().to_string()
+            })
+            .to_string();
+
+        assert_eq!(replace_str, "720p/2000000/1000.cmfv".to_string())
     }
 }
