@@ -38,6 +38,7 @@ pub struct MPD {
     xmlns_scte35: Option<String>,
     #[serde(rename = "@xmlns:scte214")]
     xmlns_scte214: Option<String>,
+    // ToDo. @xsi:schemaLocationだとパースできないが@schemaLocationだとパースできる原因を調査する
     #[serde(rename = "@xsi:schemaLocation")]
     #[builder(default = "Some(vec![MPD_NAMESPACE, MPD_SCHEMA_FILE].into())")]
     xsi_schema_location: Option<StringVector>,
