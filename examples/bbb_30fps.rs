@@ -200,7 +200,10 @@ async fn main() -> Result<(), anyhow::Error> {
     let mpd = MPDBuilder::default()
         .media_presentation_duration(std::time::Duration::from_millis(634566))
         .min_buffer_time(std::time::Duration::from_secs(2))
-        .profiles(vec![Profile::IsoLive])
+        .profiles(vec![
+            Profile::IsoLive,
+            Profile::Other("urn:hbbtv:dash:profile:isoff-live:2012".to_string()),
+        ])
         .r#type(PresentationType::Static)
         .xmlns("urn:mpeg:dash:schema:mpd:2011")
         .xmlns_xsi("http://www.w3.org/2001/XMLSchema-instance")
