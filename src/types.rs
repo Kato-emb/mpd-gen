@@ -1037,6 +1037,14 @@ impl FromStr for FrameRate {
     }
 }
 
+impl From<u32> for FrameRate {
+    fn from(value: u32) -> Self {
+        Self {
+            value: rational::Ratio::new(value, 1),
+        }
+    }
+}
+
 /// 4CC as per latest 14496-12
 #[derive(Default, Clone, PartialEq, Eq, Hash, SerializeDisplay, DeserializeFromStr)]
 pub struct FourCC {
@@ -1396,41 +1404,44 @@ pub type StringVector = WhitespaceSeparatedList<String>;
 /// Whitespace separated list of 4CC
 pub type ListOfFourCC = WhitespaceSeparatedList<FourCC>;
 
-#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
-pub struct AudioSamplingRate(UIntVector);
+// ToDo. AudioSamplingRate should check that the array length is between 1 and 2
+pub type AudioSamplingRate = UIntVector;
 
-impl Deref for AudioSamplingRate {
-    type Target = UIntVector;
+// #[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
+// pub struct AudioSamplingRate(UIntVector);
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
+// impl Deref for AudioSamplingRate {
+//     type Target = UIntVector;
 
-impl fmt::Display for AudioSamplingRate {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0.to_string())
-    }
-}
+//     fn deref(&self) -> &Self::Target {
+//         &self.0
+//     }
+// }
 
-impl FromStr for AudioSamplingRate {
-    type Err = MpdError;
+// impl fmt::Display for AudioSamplingRate {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         write!(f, "{}", self.0.to_string())
+//     }
+// }
 
-    fn from_str(s: &str) -> Result<Self> {
-        let items = s
-            .split_whitespace()
-            .map(|s| s.parse::<u32>().map_err(|err| MpdError::ParseIntError(err)))
-            .collect::<Result<Vec<u32>>>()?;
+// impl FromStr for AudioSamplingRate {
+//     type Err = MpdError;
 
-        if items.len() > 0 && items.len() < 3 {
-            Ok(AudioSamplingRate(WhitespaceSeparatedList::from(items)))
-        } else {
-            Err(MpdError::InvalidData(
-                "The number of Audio sampling rate must be between 1 and 2",
-            ))
-        }
-    }
-}
+//     fn from_str(s: &str) -> Result<Self> {
+//         let items = s
+//             .split_whitespace()
+//             .map(|s| s.parse::<u32>().map_err(|err| MpdError::ParseIntError(err)))
+//             .collect::<Result<Vec<u32>>>()?;
+
+//         if items.len() > 0 && items.len() < 3 {
+//             Ok(AudioSamplingRate(WhitespaceSeparatedList::from(items)))
+//         } else {
+//             Err(MpdError::InvalidData(
+//                 "The number of Audio sampling rate must be between 1 and 2",
+//             ))
+//         }
+//     }
+// }
 
 #[cfg(test)]
 mod tests {

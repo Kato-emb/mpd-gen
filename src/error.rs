@@ -19,5 +19,7 @@ pub enum MpdError {
     #[error("{0}")]
     ChronoParseError(#[from] chrono::format::ParseError),
     #[error("{0}")]
-    QuickXmlSerdeError(#[from] quick_xml::DeError),
+    QuickXmlDeserializeError(#[from] quick_xml::DeError),
+    #[error("{0}")]
+    QuickXmlSerializeError(#[from] quick_xml::SeError),
 }

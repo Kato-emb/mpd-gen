@@ -137,7 +137,8 @@ impl MPD {
         let mut xml = String::new();
         let mut ser = quick_xml::se::Serializer::new(&mut xml);
         ser.indent(' ', 2);
-        // self.serialize(ser)?;
+        self.serialize(ser)
+            .map_err(|err| MpdError::QuickXmlSerializeError(err))?;
 
         writer.write_all(xml.as_bytes())?;
 

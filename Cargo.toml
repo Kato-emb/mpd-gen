@@ -21,4 +21,12 @@ strum_macros = { version = "0.26.4" }
 quick-xml = { version = "0.37.1", features = ["serialize"] }
 
 [dev-dependencies]
+anyhow = { version = "1.0.93" }
 serde_plain = { version = "1" }
+
+axum = { version = "0.7.9" }
+axum-server = { version = "0.7.1" }
+http = { version = "1.1.0" }
+tower-http = { version = "0.6.2", features = ["fs"] }
+
+tokio = { version = "1", features = ["rt-multi-thread", "signal"] }
