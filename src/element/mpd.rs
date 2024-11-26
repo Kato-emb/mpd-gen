@@ -48,31 +48,31 @@ pub struct MPD {
     #[serde(rename = "@type")]
     r#type: Option<PresentationType>,
     #[serde(rename = "@availabilityStartTime")]
-    availability_start_time: Option<XsDateTime>, // dynamicの場合必須
+    availability_start_time: Option<xs::DateTime>, // dynamicの場合必須
     #[serde(rename = "@publishTime")]
-    publish_time: Option<XsDateTime>, // dynamicの場合必須
+    publish_time: Option<xs::DateTime>, // dynamicの場合必須
     #[serde(rename = "@availabilityEndTime")]
-    availability_end_time: Option<XsDateTime>,
+    availability_end_time: Option<xs::DateTime>,
     #[serde(rename = "@mediaPresentationDuration")]
-    media_presentation_duration: Option<XsDuration>,
+    media_presentation_duration: Option<xs::Duration>,
     #[serde(rename = "@minimumUpdatePeriod")]
-    minimum_undate_period: Option<XsDuration>,
+    minimum_undate_period: Option<xs::Duration>,
     #[serde(rename = "@minBufferTime")]
-    min_buffer_time: XsDuration,
+    min_buffer_time: xs::Duration,
     #[serde(rename = "@timeShiftBufferDepth")]
-    time_shift_buffer_depth: Option<XsDuration>,
+    time_shift_buffer_depth: Option<xs::Duration>,
     #[serde(rename = "@suggestedPresentationDelay")]
-    suggested_presentation_delay: Option<XsDuration>,
+    suggested_presentation_delay: Option<xs::Duration>,
     #[serde(rename = "@maxSegmentDuration")]
-    max_segment_duration: Option<XsDuration>,
+    max_segment_duration: Option<xs::Duration>,
     #[serde(rename = "@maxSubsegmentDuration")]
-    max_subsegment_duration: Option<XsDuration>,
+    max_subsegment_duration: Option<xs::Duration>,
     #[serde(rename = "ProgramInformation")]
     program_information: Option<Vec<ProgramInformation>>,
     #[serde(rename = "BaseURL")]
     base_url: Option<Vec<BaseURL>>,
     #[serde(rename = "Location")]
-    location: Option<Vec<XsAnyURI>>,
+    location: Option<Vec<xs::AnyURI>>,
     #[serde(rename = "PatchLocation")]
     patch_location: Option<Vec<PatchLocation>>,
     #[serde(rename = "ServiceDescription")]
@@ -137,7 +137,7 @@ impl MPD {
         let mut xml = String::new();
         let mut ser = quick_xml::se::Serializer::new(&mut xml);
         ser.indent(' ', 2);
-        self.serialize(ser)?;
+        // self.serialize(ser)?;
 
         writer.write_all(xml.as_bytes())?;
 

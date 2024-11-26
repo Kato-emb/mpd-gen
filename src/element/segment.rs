@@ -14,13 +14,13 @@ pub struct SegmentBase {
     #[serde(rename = "@presentationTimeOffset")]
     presentation_time_offset: Option<u64>,
     #[serde(rename = "@eptDelta")]
-    ept_delta: Option<XsInteger>,
+    ept_delta: Option<xs::Integer>,
     #[serde(rename = "@pdDelta")]
-    pd_delta: Option<XsInteger>,
+    pd_delta: Option<xs::Integer>,
     #[serde(rename = "@presentationDuration")]
     presentation_duration: Option<u64>,
     #[serde(rename = "@timeShiftBufferDepth")]
-    time_shift_buffer_depth: Option<XsDuration>,
+    time_shift_buffer_depth: Option<xs::Duration>,
     #[serde(rename = "@indexRange")]
     index_range: Option<SingleByteRange>,
     #[serde(rename = "@indexRangeExact")]
@@ -42,9 +42,9 @@ pub struct SegmentBase {
 #[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct SegmentList {
     #[serde(rename = "@xlink:href")]
-    href: Option<String>,
+    href: Option<xlink::Href>,
     #[serde(rename = "@xlink:actuate")]
-    actuate: Option<String>,
+    actuate: Option<xlink::Actuate>,
     #[serde(rename = "@duration")]
     duration: Option<u32>,
     #[serde(rename = "@startNumber")]
@@ -56,13 +56,13 @@ pub struct SegmentList {
     #[serde(rename = "@presentationTimeOffset")]
     presentation_time_offset: Option<u64>,
     #[serde(rename = "@eptDelta")]
-    ept_delta: Option<XsInteger>,
+    ept_delta: Option<xs::Integer>,
     #[serde(rename = "@pdDelta")]
-    pd_delta: Option<XsInteger>,
+    pd_delta: Option<xs::Integer>,
     #[serde(rename = "@presentationDuration")]
     presentation_duration: Option<u64>,
     #[serde(rename = "@timeShiftBufferDepth")]
-    time_shift_buffer_depth: Option<XsDuration>,
+    time_shift_buffer_depth: Option<xs::Duration>,
     #[serde(rename = "@indexRange")]
     index_range: Option<SingleByteRange>,
     #[serde(rename = "@indexRangeExact")]
@@ -100,13 +100,13 @@ pub struct SegmentTemplate {
     #[serde(rename = "@presentationTimeOffset")]
     presentation_time_offset: Option<u64>,
     #[serde(rename = "@eptDelta")]
-    ept_delta: Option<XsInteger>,
+    ept_delta: Option<xs::Integer>,
     #[serde(rename = "@pdDelta")]
-    pd_delta: Option<XsInteger>,
+    pd_delta: Option<xs::Integer>,
     #[serde(rename = "@presentationDuration")]
     presentation_duration: Option<u64>,
     #[serde(rename = "@timeShiftBufferDepth")]
-    time_shift_buffer_depth: Option<XsDuration>,
+    time_shift_buffer_depth: Option<xs::Duration>,
     #[serde(rename = "@indexRange")]
     index_range: Option<SingleByteRange>,
     #[serde(rename = "@indexRangeExact")]
@@ -178,7 +178,7 @@ pub struct Segment {
     #[serde(rename = "@k")]
     segment_count: Option<u64>,
     #[serde(rename = "@r")]
-    repeat_count: Option<XsInteger>,
+    repeat_count: Option<xs::Integer>,
 }
 
 impl CustomValidate for SegmentBuilder {
@@ -249,7 +249,7 @@ mod tests {
         let segment_base = SegmentBaseBuilder::default()
             .timescale(3000u32)
             .availability_time_offset(10.1)
-            .time_shift_buffer_depth(XsDuration::from_str("PT3H11M53S").unwrap())
+            .time_shift_buffer_depth(xs::Duration::from_str("PT3H11M53S").unwrap())
             .initialization(
                 UrlBuilder::default()
                     .source_url("http://example.com/video.mp4")

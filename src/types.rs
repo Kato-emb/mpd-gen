@@ -1,344 +1,670 @@
 use std::{fmt, ops::Deref, str::FromStr};
 
-use chrono::{DateTime, Local, NaiveDateTime, Utc};
+use chrono::{Local, NaiveDateTime, Utc};
 use num::{integer::gcd, rational, BigInt};
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::{definition::Profile, entity::*, error::MpdError, Result};
 
-/// xlink:acture
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "camelCase")]
-pub enum XLinkActure {
-    OnLoad,
-    #[default]
-    OnRequest,
-}
+/// xsd pattern
+pub mod xlink {
+    use super::*;
 
-/// xs:anyURI
-#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
-pub struct XsAnyURI {
-    value: String,
-}
+    pub const NAMESPACE: &str = "http://www.w3.org/1999/xlink";
 
-impl fmt::Display for XsAnyURI {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.value)
+    #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    pub enum Actuate {
+        OnLoad,
+        #[default]
+        OnRequest,
+        __Other,
+        __None,
     }
-}
 
-impl FromStr for XsAnyURI {
-    type Err = MpdError;
-
-    fn from_str(s: &str) -> Result<Self> {
-        Ok(Self {
-            value: s.to_string(),
-        })
+    #[derive(Debug, Clone, PartialEq, Eq, Hash, SerializeDisplay, DeserializeFromStr)]
+    pub struct Href {
+        value: String,
     }
-}
 
-impl<T> From<T> for XsAnyURI
-where
-    T: AsRef<str>,
-{
-    fn from(value: T) -> Self {
-        Self {
-            value: value.as_ref().to_string(),
+    impl fmt::Display for Href {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{}", self.value)
+        }
+    }
+
+    impl FromStr for Href {
+        type Err = MpdError;
+
+        fn from_str(s: &str) -> Result<Self> {
+            Ok(Self {
+                value: s.to_string(),
+            })
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn test_types_xlink_actuate_serde() {
+            let value = Actuate::OnRequest;
+
+            let se = serde_plain::to_string(&value).unwrap();
+            let de = serde_plain::from_str::<Actuate>(&se).unwrap();
+            assert_eq!(value, de);
+        }
+
+        #[test]
+        fn test_types_xlink_href_serde() {
+            let value = Href::from_str("example").unwrap();
+
+            let se = serde_plain::to_string(&value).unwrap();
+            let de = serde_plain::from_str::<Href>(&se).unwrap();
+            assert_eq!(value, de);
         }
     }
 }
 
-/// xs:integer
-#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
-pub struct XsInteger {
-    value: BigInt,
-}
+pub mod xs {
+    use super::*;
 
-impl<T> From<T> for XsInteger
-where
-    T: Into<BigInt>,
-{
-    fn from(value: T) -> Self {
-        Self {
-            value: value.into(),
+    pub const NAMESPACE: &str = "http://www.w3.org/2001/XMLSchema";
+
+    /// xsd:token
+    ///
+    /// # Replace
+    /// * `&` -> `&amp;`
+    /// * `<` -> `&lt;`
+    #[derive(Debug, Clone, PartialEq, Eq, Hash, SerializeDisplay, DeserializeFromStr)]
+    struct Token {
+        value: String,
+    }
+
+    impl fmt::Display for Token {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(
+                f,
+                "{}",
+                self.value.replace("&", "&amp;").replace("<", "&lt;")
+            )
         }
     }
-}
 
-impl fmt::Display for XsInteger {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.value.to_string())
-    }
-}
+    impl FromStr for Token {
+        type Err = MpdError;
 
-impl FromStr for XsInteger {
-    type Err = MpdError;
+        fn from_str(s: &str) -> Result<Self> {
+            let value = s.trim().replace("\n", " ").replace("\r\n", " ");
 
-    fn from_str(s: &str) -> Result<Self> {
-        if !PATTERN_INTEGER.is_match(s) {
-            return Err(MpdError::UnmatchedPattern);
-        }
-
-        let value = s
-            .parse::<BigInt>()
-            .map_err(|_| MpdError::InvalidData("Failed to parse xs:integer"))?;
-
-        Ok(Self { value })
-    }
-}
-
-/// xs:ID
-///
-/// <b>※Warn</b> : No check is made for uniqueness within an XML instance.
-#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
-pub struct XsId {
-    value: String,
-}
-
-impl fmt::Display for XsId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.value)
-    }
-}
-
-impl FromStr for XsId {
-    type Err = MpdError;
-
-    fn from_str(s: &str) -> Result<Self> {
-        // xs:token
-        let value = s.trim().replace("\n", " ").replace("\r\n", " ");
-
-        if !PATTERN_NC_NAME.is_match(&value) {
-            return Err(MpdError::UnmatchedPattern);
-        }
-
-        Ok(Self { value })
-    }
-}
-
-/// xs:language
-#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
-pub struct XsLanguage {
-    value: String,
-}
-
-impl fmt::Display for XsLanguage {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.value)
-    }
-}
-
-impl FromStr for XsLanguage {
-    type Err = MpdError;
-
-    fn from_str(s: &str) -> Result<Self> {
-        // xs:token
-        let value = s.trim().replace("\n", " ").replace("\r\n", " ");
-
-        if !PATTERN_LANG.is_match(&value) {
-            return Err(MpdError::UnmatchedPattern);
-        }
-
-        Ok(Self { value })
-    }
-}
-
-/// xs:dateTime
-#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
-pub struct XsDateTime {
-    value: DateTime<Utc>,
-}
-
-impl fmt::Display for XsDateTime {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            self.value
-                .to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true) // 小数点以下の扱いをAutoにしているがこれで問題ないか
-        )
-    }
-}
-
-impl FromStr for XsDateTime {
-    type Err = MpdError;
-
-    fn from_str(s: &str) -> Result<Self> {
-        let time_part = s.split('T').nth(1).ok_or(MpdError::UnmatchedPattern)?;
-
-        let value = if time_part.contains('Z') || time_part.contains('+') || time_part.contains('-')
-        {
-            DateTime::parse_from_rfc3339(s)?.to_utc()
-        } else {
-            let datetime = NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.f")?
-                .and_local_timezone(Local)
-                .unwrap();
-            datetime.to_utc()
-        };
-
-        Ok(Self { value })
-    }
-}
-
-impl From<DateTime<Utc>> for XsDateTime {
-    fn from(value: DateTime<Utc>) -> Self {
-        Self { value }
-    }
-}
-
-/// xs:duration
-#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq)]
-pub struct XsDuration {
-    value: std::time::Duration,
-    is_negative: bool,
-}
-
-impl Deref for XsDuration {
-    type Target = std::time::Duration;
-
-    fn deref(&self) -> &Self::Target {
-        &self.value
-    }
-}
-
-impl fmt::Display for XsDuration {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut output = if self.is_negative {
-            String::from("-PT")
-        } else {
-            String::from("PT")
-        };
-
-        let mut seconds = self.value.as_secs();
-        let mut nanos = self.value.subsec_nanos();
-
-        let hours = seconds / 3600;
-        seconds = seconds % 3600;
-
-        if hours != 0 {
-            output.push_str(&format!("{hours}H"));
-        }
-
-        let minutes = seconds / 60;
-        seconds = seconds % 60;
-
-        if minutes != 0 || hours != 0 {
-            output.push_str(&format!("{minutes}M"));
-        }
-
-        if nanos != 0 {
-            // 末尾の０を削除
-            while nanos % 10 == 0 {
-                nanos /= 10;
+            if value.contains('&') && !value.contains("&amp;") {
+                return Err(MpdError::InvalidData("Unescaped '&' found"));
             }
 
-            output.push_str(&format!("{}.{}S", seconds, nanos));
-        } else {
-            output.push_str(&format!("{}S", seconds));
-        };
+            if value.contains('<') {
+                return Err(MpdError::InvalidData("Unescaped '<' found"));
+            }
 
-        write!(f, "{output}")
-    }
-}
-
-impl FromStr for XsDuration {
-    type Err = MpdError;
-
-    fn from_str(s: &str) -> Result<Self> {
-        let mut chars = s.chars().peekable();
-
-        // Check for negative
-        let is_negative = if chars.peek() == Some(&'-') {
-            chars.next();
-            true
-        } else {
-            false
-        };
-
-        if chars.next() != Some('P') {
-            return Err(MpdError::UnmatchedPattern);
+            let value = value.replace("&amp;", "&").replace("&lt;", "<");
+            Ok(Self { value })
         }
+    }
 
-        let mut duration = std::time::Duration::default();
-        let mut flag = 0b0000_0000;
+    /// xsd:anyURI
+    #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, SerializeDisplay, DeserializeFromStr)]
+    pub struct AnyURI {
+        value: String,
+    }
 
-        let mut value = String::new();
+    impl fmt::Display for AnyURI {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{}", self.value)
+        }
+    }
 
-        while let Some(c) = chars.next() {
-            if c.is_digit(10) || (c == '.' && !value.contains('.')) {
-                value.push(c);
+    impl FromStr for AnyURI {
+        type Err = crate::MpdError;
+
+        fn from_str(s: &str) -> Result<Self> {
+            Ok(Self {
+                value: s.to_string(),
+            })
+        }
+    }
+
+    impl<T> From<T> for AnyURI
+    where
+        T: AsRef<str>,
+    {
+        fn from(value: T) -> Self {
+            Self {
+                value: value.as_ref().to_string(),
+            }
+        }
+    }
+
+    /// xsd:integer
+    ///
+    /// # Pattern
+    /// `[\-+]?[0-9]+`
+    #[derive(Debug, Clone, PartialEq, Eq, Hash, SerializeDisplay, DeserializeFromStr)]
+    pub struct Integer {
+        value: BigInt,
+    }
+
+    impl fmt::Display for Integer {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{}", self.value.to_string())
+        }
+    }
+
+    impl FromStr for Integer {
+        type Err = MpdError;
+
+        fn from_str(s: &str) -> Result<Self> {
+            if !PATTERN_INTEGER.is_match(s) {
+                return Err(MpdError::UnmatchedPattern);
+            }
+
+            let value = s
+                .parse::<BigInt>()
+                .map_err(|_| MpdError::InvalidData("Failed to parse to xs:integer"))?;
+
+            Ok(Self { value })
+        }
+    }
+
+    impl<T> From<T> for Integer
+    where
+        T: Into<BigInt>,
+    {
+        fn from(value: T) -> Self {
+            Self {
+                value: value.into(),
+            }
+        }
+    }
+
+    /// xsd:ID
+    ///
+    /// # Pattern
+    /// `[\i-[:]][\c-[:]]*`
+    ///
+    /// # Safety
+    /// No check is made for uniqueness within an XML instance.
+    #[derive(Debug, Clone, PartialEq, Eq, Hash, SerializeDisplay, DeserializeFromStr)]
+    pub struct Id {
+        token: Token,
+    }
+
+    impl fmt::Display for Id {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{}", self.token)
+        }
+    }
+
+    impl FromStr for Id {
+        type Err = MpdError;
+
+        fn from_str(s: &str) -> Result<Self> {
+            let token = Token::from_str(s)?;
+
+            if !PATTERN_NC_NAME.is_match(&token.value) {
+                return Err(MpdError::UnmatchedPattern);
+            }
+
+            Ok(Self { token })
+        }
+    }
+
+    /// xsd:language
+    ///
+    /// # Pattern
+    /// `[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*`
+    #[derive(Debug, Clone, PartialEq, Eq, Hash, SerializeDisplay, DeserializeFromStr)]
+    pub struct Language {
+        token: Token,
+    }
+
+    impl fmt::Display for Language {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{}", self.token)
+        }
+    }
+
+    impl FromStr for Language {
+        type Err = MpdError;
+
+        fn from_str(s: &str) -> Result<Self> {
+            let token = Token::from_str(s)?;
+
+            if !PATTERN_LANG.is_match(&token.value) {
+                return Err(MpdError::UnmatchedPattern);
+            }
+
+            Ok(Self { token })
+        }
+    }
+
+    /// xsd:dateTime
+    ///
+    /// # Format
+    /// * `CCYY-MM-DDThh:mm:ss.sss(±hh:mm, Z)`
+    #[derive(Debug, Clone, PartialEq, Eq, Hash, SerializeDisplay, DeserializeFromStr)]
+    pub struct DateTime {
+        value: chrono::DateTime<Utc>,
+    }
+
+    impl fmt::Display for DateTime {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(
+                f,
+                "{}",
+                self.value
+                    .to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true) // ToDo. 小数点以下の扱いをAutoにしているがこれで問題ないか
+            )
+        }
+    }
+
+    impl FromStr for DateTime {
+        type Err = MpdError;
+
+        fn from_str(s: &str) -> Result<Self> {
+            let time_part = s.split('T').nth(1).ok_or(MpdError::UnmatchedPattern)?;
+
+            let value =
+                if time_part.contains('Z') || time_part.contains('+') || time_part.contains('-') {
+                    chrono::DateTime::parse_from_rfc3339(s)?.to_utc()
+                } else {
+                    let datetime = NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.f")?
+                        .and_local_timezone(Local)
+                        .unwrap();
+                    datetime.to_utc()
+                };
+
+            Ok(Self { value })
+        }
+    }
+
+    impl From<chrono::DateTime<Utc>> for DateTime {
+        fn from(value: chrono::DateTime<Utc>) -> Self {
+            Self { value }
+        }
+    }
+
+    /// xs:duration
+    ///
+    /// # Format
+    /// `PnYnMnDTnHnMnS`
+    ///
+    /// # Literal
+    /// * `P` : Starts the expresion
+    /// * `nY` : Number of years
+    /// * `nM` : Number of months
+    /// * `nD` : Number of days
+    /// * `T` : Separates the date and time
+    /// * `nH` : Number of hours
+    /// * `nM` : Number of minutes
+    /// * `nS` : Number of seconds
+    #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, SerializeDisplay, DeserializeFromStr)]
+    pub struct Duration {
+        value: std::time::Duration,
+        is_negative: bool,
+    }
+
+    impl fmt::Display for Duration {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            let mut output = if self.is_negative {
+                String::from("-PT")
             } else {
-                if c == 'T' {
-                    if chars.peek() != None {
-                        flag |= 0b0000_1000;
-                        continue;
-                    } else {
+                String::from("PT")
+            };
+
+            let mut seconds = self.value.as_secs();
+            let mut nanos = self.value.subsec_nanos();
+
+            let hours = seconds / 3600;
+            seconds = seconds % 3600;
+
+            if hours != 0 {
+                output.push_str(&format!("{hours}H"));
+            }
+
+            let minutes = seconds / 60;
+            seconds = seconds % 60;
+
+            if minutes != 0 || hours != 0 {
+                output.push_str(&format!("{minutes}M"));
+            }
+
+            if nanos != 0 {
+                // 末尾の０を削除
+                while nanos % 10 == 0 {
+                    nanos /= 10;
+                }
+
+                output.push_str(&format!("{}.{}S", seconds, nanos));
+            } else {
+                output.push_str(&format!("{}S", seconds));
+            };
+
+            write!(f, "{output}")
+        }
+    }
+
+    impl FromStr for Duration {
+        type Err = MpdError;
+
+        fn from_str(s: &str) -> Result<Self> {
+            let mut chars = s.chars().peekable();
+
+            // Check for negative
+            let is_negative = if chars.peek() == Some(&'-') {
+                chars.next();
+                true
+            } else {
+                false
+            };
+
+            if chars.next() != Some('P') {
+                return Err(MpdError::UnmatchedPattern);
+            }
+
+            let mut duration = std::time::Duration::default();
+            let mut flag = 0b0000_0000;
+
+            let mut value = String::new();
+
+            while let Some(c) = chars.next() {
+                if c.is_digit(10) || (c == '.' && !value.contains('.')) {
+                    value.push(c);
+                } else {
+                    if c == 'T' {
+                        if chars.peek() != None {
+                            flag |= 0b0000_1000;
+                            continue;
+                        } else {
+                            return Err(MpdError::UnmatchedPattern);
+                        }
+                    } else if value.is_empty() {
                         return Err(MpdError::UnmatchedPattern);
                     }
-                } else if value.is_empty() {
-                    return Err(MpdError::UnmatchedPattern);
+
+                    match c {
+                        'Y' if flag == 0b0000_0000 => {
+                            let years = value.parse::<u64>()? * 365 * 24 * 60 * 60;
+                            duration += std::time::Duration::from_secs(years);
+                            flag |= 0b0000_0001;
+                        }
+                        'M' if flag < 0b0000_0010 => {
+                            let months = value.parse::<u64>()? * 30 * 24 * 60 * 60;
+                            duration += std::time::Duration::from_secs(months);
+                            flag |= 0b0000_0010;
+                        }
+                        'D' if flag < 0b0000_0100 => {
+                            let days = value.parse::<u64>()? * 24 * 60 * 60;
+                            duration += std::time::Duration::from_secs(days);
+                            flag |= 0b0000_0100;
+                        }
+                        'H' if flag >= 0b0000_1000 && flag < 0b0001_0000 => {
+                            let hours = value.parse::<u64>()? * 60 * 60;
+                            duration += std::time::Duration::from_secs(hours);
+                            flag |= 0b0001_0000;
+                        }
+                        'M' if flag >= 0b0000_1000 && flag < 0b0010_0000 => {
+                            let minutes = value.parse::<u64>()? * 60;
+                            duration += std::time::Duration::from_secs(minutes);
+                            flag |= 0b0010_0000;
+                        }
+                        'S' if flag >= 0b0000_1000 && flag < 0b0100_0000 => {
+                            duration += if value.contains('.') && !value.ends_with('.') {
+                                let nanos = (value.parse::<f64>()? * 1_000_000_000.0) as u64;
+                                std::time::Duration::from_nanos(nanos)
+                            } else {
+                                std::time::Duration::from_secs(value.parse::<u64>()?)
+                            };
+
+                            flag |= 0b0100_0000;
+                        }
+                        _ => return Err(MpdError::UnmatchedPattern),
+                    }
+
+                    value.clear();
                 }
+            }
 
-                match c {
-                    'Y' if flag == 0b0000_0000 => {
-                        let years = value.parse::<u64>()? * 365 * 24 * 60 * 60;
-                        duration += std::time::Duration::from_secs(years);
-                        flag |= 0b0000_0001;
-                    }
-                    'M' if flag < 0b0000_0010 => {
-                        let months = value.parse::<u64>()? * 30 * 24 * 60 * 60;
-                        duration += std::time::Duration::from_secs(months);
-                        flag |= 0b0000_0010;
-                    }
-                    'D' if flag < 0b0000_0100 => {
-                        let days = value.parse::<u64>()? * 24 * 60 * 60;
-                        duration += std::time::Duration::from_secs(days);
-                        flag |= 0b0000_0100;
-                    }
-                    'H' if flag >= 0b0000_1000 && flag < 0b0001_0000 => {
-                        let hours = value.parse::<u64>()? * 60 * 60;
-                        duration += std::time::Duration::from_secs(hours);
-                        flag |= 0b0001_0000;
-                    }
-                    'M' if flag >= 0b0000_1000 && flag < 0b0010_0000 => {
-                        let minutes = value.parse::<u64>()? * 60;
-                        duration += std::time::Duration::from_secs(minutes);
-                        flag |= 0b0010_0000;
-                    }
-                    'S' if flag >= 0b0000_1000 && flag < 0b0100_0000 => {
-                        duration += if value.contains('.') && !value.ends_with('.') {
-                            let nanos = (value.parse::<f64>()? * 1_000_000_000.0) as u64;
-                            std::time::Duration::from_nanos(nanos)
-                        } else {
-                            std::time::Duration::from_secs(value.parse::<u64>()?)
-                        };
-
-                        flag |= 0b0100_0000;
-                    }
-                    _ => return Err(MpdError::UnmatchedPattern),
-                }
-
-                value.clear();
+            if flag & 0b1111_0111 != 0 {
+                Ok(Self {
+                    value: duration,
+                    is_negative,
+                })
+            } else {
+                Err(MpdError::UnmatchedPattern)
             }
         }
+    }
 
-        if flag & 0b1111_0111 != 0 {
-            Ok(Self {
-                value: duration,
-                is_negative,
-            })
-        } else {
-            Err(MpdError::UnmatchedPattern)
+    impl From<std::time::Duration> for Duration {
+        fn from(value: std::time::Duration) -> Self {
+            Self {
+                value,
+                is_negative: false,
+            }
         }
     }
-}
 
-impl From<std::time::Duration> for XsDuration {
-    fn from(value: std::time::Duration) -> Self {
-        Self {
-            value,
-            is_negative: false,
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn test_types_xs_token_serde() {
+            let value = Token::from_str("example").unwrap();
+
+            let se = serde_plain::to_string(&value).unwrap();
+            let de = serde_plain::from_str::<Token>(&se).unwrap();
+            assert_eq!(value, de);
+        }
+
+        #[test]
+        fn test_types_xs_token_valid() {
+            assert!(Token::from_str("This is a string!").is_ok());
+            assert!(Token::from_str("Édition française.").is_ok());
+            assert!(Token::from_str("12.5").is_ok());
+            assert!(Token::from_str("").is_ok());
+
+            assert_eq!(
+                Token::from_str("PB&amp;J").unwrap().value,
+                "PB&J".to_string()
+            );
+            assert_eq!(
+                Token::from_str("   Separated by 3 spaces.").unwrap().value,
+                "Separated by 3 spaces.".to_string()
+            );
+            assert_eq!(
+                Token::from_str("This\nis on two lines.").unwrap().value,
+                "This is on two lines.".to_string()
+            );
+        }
+
+        #[test]
+        fn test_types_xs_token_invalid() {
+            assert!(Token::from_str("AT&T").is_err());
+            assert!(Token::from_str("3 < 4").is_err());
+        }
+
+        #[test]
+        fn test_types_xs_any_uri_serde() {
+            let value = AnyURI::from_str("example").unwrap();
+
+            let se = serde_plain::to_string(&value).unwrap();
+            let de = serde_plain::from_str::<AnyURI>(&se).unwrap();
+            assert_eq!(value, de);
+        }
+
+        #[test]
+        fn test_types_xs_integer_serde() {
+            let value = Integer::from(123);
+
+            let se = serde_plain::to_string(&value).unwrap();
+            let de = serde_plain::from_str::<Integer>(&se).unwrap();
+            assert_eq!(value, de);
+        }
+
+        #[test]
+        fn test_types_xs_integer_valid() {
+            assert!(Integer::from_str("122").is_ok());
+            assert!(Integer::from_str("00122").is_ok());
+            assert!(Integer::from_str("0").is_ok());
+            assert!(Integer::from_str("-3").is_ok());
+            assert!(Integer::from_str("+3").is_ok());
+        }
+
+        #[test]
+        fn test_types_xs_integer_invalid() {
+            assert!(Integer::from_str("3.").is_err());
+            assert!(Integer::from_str("3.0").is_err());
+            assert!(Integer::from_str("").is_err());
+        }
+
+        #[test]
+        fn test_types_xs_id_serde() {
+            let value = Id::from_str("example").unwrap();
+
+            let se = serde_plain::to_string(&value).unwrap();
+            let de = serde_plain::from_str::<Id>(&se).unwrap();
+            assert_eq!(value, de);
+        }
+
+        #[test]
+        fn test_types_xs_id_valid() {
+            assert!(Id::from_str("myElement").is_ok());
+            assert!(Id::from_str("_my.Element").is_ok());
+            assert!(Id::from_str("my-Element").is_ok());
+
+            assert_eq!(
+                Id::from_str("  _my.Element").unwrap().to_string(),
+                "_my.Element".to_string()
+            );
+        }
+
+        #[test]
+        fn test_types_xs_id_invalid() {
+            assert!(Id::from_str("pre:myElement").is_err());
+            assert!(Id::from_str("-myelement").is_err());
+            assert!(Id::from_str("").is_err());
+        }
+
+        #[test]
+        fn test_types_xs_lang_serde() {
+            let value = Language::from_str("en-US").unwrap();
+
+            let se = serde_plain::to_string(&value).unwrap();
+            let de = serde_plain::from_str::<Language>(&se).unwrap();
+            assert_eq!(value, de);
+        }
+
+        #[test]
+        fn test_types_xs_lang_valid() {
+            assert!(Language::from_str("en").is_ok());
+            assert!(Language::from_str("en-GB").is_ok());
+            assert!(Language::from_str("ja").is_ok());
+            assert!(Language::from_str("i-navajo").is_ok());
+            assert!(Language::from_str("x-Newspeak").is_ok());
+            assert!(Language::from_str("any-value-with-short-partsen").is_ok());
+        }
+
+        #[test]
+        fn test_types_xs_lang_invalid() {
+            assert!(Language::from_str("longerThan8").is_err());
+            assert!(Language::from_str("").is_err());
+        }
+
+        #[test]
+        fn test_types_xs_datetime_serde() {
+            let value = DateTime::from_str("2021-01-01T00:00:00Z").unwrap();
+
+            let se = serde_plain::to_string(&value).unwrap();
+            let de = serde_plain::from_str::<DateTime>(&se).unwrap();
+            assert_eq!(value, de);
+        }
+
+        #[test]
+        fn test_types_xs_datetime_parse() {
+            let datetime = DateTime::from_str("2004-04-12T13:20:00-05:00").unwrap();
+            assert_eq!(&datetime.to_string(), "2004-04-12T18:20:00Z");
+
+            let datetime = DateTime::from_str("2004-04-12T13:20:15.5").unwrap();
+            assert_eq!(&datetime.to_string(), "2004-04-12T04:20:15.500Z");
+        }
+
+        #[test]
+        fn test_types_xs_datetime_valid() {
+            assert!(DateTime::from_str("2004-04-12T13:20:00").is_ok());
+            assert!(DateTime::from_str("2004-04-12T13:20:15.5").is_ok());
+            assert!(DateTime::from_str("2004-04-12T13:20:00-05:00").is_ok());
+            assert!(DateTime::from_str("2004-04-12T13:20:00Z").is_ok());
+        }
+
+        #[test]
+        fn test_types_xs_datetime_invalid() {
+            assert!(DateTime::from_str("2004-04-12T13:00").is_err());
+            assert!(DateTime::from_str("2004-04-1213:20:00").is_err());
+            assert!(DateTime::from_str("99-04-12T13:00").is_err());
+            assert!(DateTime::from_str("2004-04-12").is_err());
+            assert!(DateTime::from_str("").is_err());
+        }
+
+        #[test]
+        fn test_types_xs_duration_parse() {
+            let duration = Duration::from_str("P2Y6M5DT12H35M30S").unwrap();
+            assert_eq!(&duration.to_string(), "PT21972H35M30S");
+
+            let duration = Duration::from_str("P20M").unwrap();
+            assert_eq!(&duration.to_string(), "PT14400H0M0S");
+
+            let duration = Duration::from_str("PT20M").unwrap();
+            assert_eq!(&duration.to_string(), "PT20M0S");
+
+            let duration = Duration::from_str("PT1M30.5S").unwrap();
+            assert_eq!(&duration.to_string(), "PT1M30.5S");
+
+            let duration = Duration::from_str("-P2DT1M30.123456789S").unwrap();
+            assert_eq!(&duration.to_string(), "-PT48H1M30.123456789S");
+
+            let duration = Duration::from_str("PT1H0M10S").unwrap();
+            assert_eq!(&duration.to_string(), "PT1H0M10S");
+
+            let duration = Duration::from_str("PT0S").unwrap();
+            assert_eq!(&duration.to_string(), "PT0S");
+        }
+
+        #[test]
+        fn test_types_xs_duration_valid() {
+            assert!(Duration::from_str("P2Y6M5DT12H35M30S").is_ok());
+            assert!(Duration::from_str("P1DT2H").is_ok());
+            assert!(Duration::from_str("P20M").is_ok());
+            assert!(Duration::from_str("PT20M").is_ok());
+            assert!(Duration::from_str("P0Y20M0D").is_ok());
+            assert!(Duration::from_str("P0Y").is_ok());
+            assert!(Duration::from_str("-P60D").is_ok());
+            assert!(Duration::from_str("PT1M30.5S").is_ok());
+        }
+
+        #[test]
+        fn test_types_xs_duration_invalid() {
+            assert!(Duration::from_str("P-20M").is_err());
+            assert!(Duration::from_str("P20MT").is_err());
+            assert!(Duration::from_str("P1YM5D").is_err());
+            assert!(Duration::from_str("P15.5Y").is_err());
+            assert!(Duration::from_str("P1D2H").is_err());
+            assert!(Duration::from_str("1Y2M").is_err());
+            assert!(Duration::from_str("P2M1Y").is_err());
+            assert!(Duration::from_str("P").is_err());
+            assert!(Duration::from_str("PT15.S").is_err());
+            assert!(Duration::from_str("").is_err());
         }
     }
 }
@@ -1059,134 +1385,6 @@ impl FromStr for AudioSamplingRate {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_types_xs_integer_valid() {
-        assert!(XsInteger::from_str("122").is_ok());
-        assert!(XsInteger::from_str("00122").is_ok());
-        assert!(XsInteger::from_str("0").is_ok());
-        assert!(XsInteger::from_str("-3").is_ok());
-        assert!(XsInteger::from_str("+3").is_ok());
-    }
-
-    #[test]
-    fn test_types_xs_integer_invalid() {
-        assert!(XsInteger::from_str("3.").is_err());
-        assert!(XsInteger::from_str("3.0").is_err());
-        assert!(XsInteger::from_str("").is_err());
-    }
-
-    #[test]
-    fn test_types_xs_id_valid() {
-        assert!(XsId::from_str("myElement").is_ok());
-        assert!(XsId::from_str("_my.Element").is_ok());
-        assert!(XsId::from_str("my-Element").is_ok());
-
-        // xs:token
-        assert_eq!(
-            XsId::from_str("  _my.Element").unwrap().to_string(),
-            "_my.Element".to_string()
-        );
-    }
-
-    #[test]
-    fn test_types_xs_id_invalid() {
-        assert!(XsId::from_str("pre:myElement").is_err());
-        assert!(XsId::from_str("-myelement").is_err());
-        assert!(XsId::from_str("").is_err());
-    }
-
-    #[test]
-    fn test_types_xs_lang_valid() {
-        assert!(XsLanguage::from_str("en").is_ok());
-        assert!(XsLanguage::from_str("en-GB").is_ok());
-        assert!(XsLanguage::from_str("ja").is_ok());
-        assert!(XsLanguage::from_str("i-navajo").is_ok());
-        assert!(XsLanguage::from_str("x-Newspeak").is_ok());
-        assert!(XsLanguage::from_str("any-value-with-short-partsen").is_ok());
-    }
-
-    #[test]
-    fn test_types_xs_lang_invalid() {
-        assert!(XsLanguage::from_str("longerThan8").is_err());
-        assert!(XsLanguage::from_str("").is_err());
-    }
-
-    #[test]
-    fn test_types_xs_datetime_valid() {
-        assert!(XsDateTime::from_str("2004-04-12T13:20:00").is_ok());
-        assert!(XsDateTime::from_str("2004-04-12T13:20:15.5").is_ok());
-        assert!(XsDateTime::from_str("2004-04-12T13:20:00-05:00").is_ok());
-        assert!(XsDateTime::from_str("2004-04-12T13:20:00Z").is_ok());
-    }
-
-    #[test]
-    fn test_types_xs_datetime_invalid() {
-        assert!(XsDateTime::from_str("2004-04-12T13:00").is_err());
-        assert!(XsDateTime::from_str("2004-04-1213:20:00").is_err());
-        assert!(XsDateTime::from_str("99-04-12T13:00").is_err());
-        assert!(XsDateTime::from_str("2004-04-12").is_err());
-        assert!(XsDateTime::from_str("").is_err());
-    }
-
-    #[test]
-    fn test_types_xs_datetime_parse() {
-        let datetime = XsDateTime::from_str("2004-04-12T13:20:00-05:00").unwrap();
-        assert_eq!(&datetime.to_string(), "2004-04-12T18:20:00Z");
-
-        let datetime = XsDateTime::from_str("2004-04-12T13:20:15.5").unwrap();
-        assert_eq!(&datetime.to_string(), "2004-04-12T04:20:15.500Z");
-    }
-
-    #[test]
-    fn test_types_xs_duration_valid() {
-        assert!(XsDuration::from_str("P2Y6M5DT12H35M30S").is_ok());
-        assert!(XsDuration::from_str("P1DT2H").is_ok());
-        assert!(XsDuration::from_str("P20M").is_ok());
-        assert!(XsDuration::from_str("PT20M").is_ok());
-        assert!(XsDuration::from_str("P0Y20M0D").is_ok());
-        assert!(XsDuration::from_str("P0Y").is_ok());
-        assert!(XsDuration::from_str("-P60D").is_ok());
-        assert!(XsDuration::from_str("PT1M30.5S").is_ok());
-    }
-
-    #[test]
-    fn test_types_xs_duration_invalid() {
-        assert!(XsDuration::from_str("P-20M").is_err());
-        assert!(XsDuration::from_str("P20MT").is_err());
-        assert!(XsDuration::from_str("P1YM5D").is_err());
-        assert!(XsDuration::from_str("P15.5Y").is_err());
-        assert!(XsDuration::from_str("P1D2H").is_err());
-        assert!(XsDuration::from_str("1Y2M").is_err());
-        assert!(XsDuration::from_str("P2M1Y").is_err());
-        assert!(XsDuration::from_str("P").is_err());
-        assert!(XsDuration::from_str("PT15.S").is_err());
-        assert!(XsDuration::from_str("").is_err());
-    }
-
-    #[test]
-    fn test_types_xs_duration_parse() {
-        let duration = XsDuration::from_str("P2Y6M5DT12H35M30S").unwrap();
-        assert_eq!(&duration.to_string(), "PT21972H35M30S");
-
-        let duration = XsDuration::from_str("P20M").unwrap();
-        assert_eq!(&duration.to_string(), "PT14400H0M0S");
-
-        let duration = XsDuration::from_str("PT20M").unwrap();
-        assert_eq!(&duration.to_string(), "PT20M0S");
-
-        let duration = XsDuration::from_str("PT1M30.5S").unwrap();
-        assert_eq!(&duration.to_string(), "PT1M30.5S");
-
-        let duration = XsDuration::from_str("-P2DT1M30.123456789S").unwrap();
-        assert_eq!(&duration.to_string(), "-PT48H1M30.123456789S");
-
-        let duration = XsDuration::from_str("PT1H0M10S").unwrap();
-        assert_eq!(&duration.to_string(), "PT1H0M10S");
-
-        let duration = XsDuration::from_str("PT0S").unwrap();
-        assert_eq!(&duration.to_string(), "PT0S");
-    }
 
     #[test]
     fn test_types_fourcc_valid() {

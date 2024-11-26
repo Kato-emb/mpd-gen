@@ -15,9 +15,9 @@ use super::{
 #[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct AdaptationSet {
     #[serde(rename = "@xlink:href")]
-    href: Option<String>,
+    href: Option<xlink::Href>,
     #[serde(rename = "@xlink:actuate")]
-    actuate: Option<XLinkActure>,
+    actuate: Option<xlink::Actuate>,
     #[serde(rename = "@id")]
     id: Option<u32>,
     #[serde(rename = "@group")]
@@ -87,7 +87,7 @@ pub struct AdaptationSet {
     resync: Option<Vec<Resync>>,
     // common attributes elements
     #[serde(rename = "@lang")]
-    lang: Option<XsLanguage>,
+    lang: Option<xs::Language>,
     #[serde(rename = "@contentType")]
     content_type: Option<ContentType>,
     #[serde(rename = "@par")]
@@ -119,7 +119,7 @@ pub struct AdaptationSet {
     #[serde(rename = "@initializationSetRef")]
     initialization_set_ref: Option<UIntVector>,
     #[serde(rename = "@initializationPrincipal")]
-    initialization_principal: Option<XsAnyURI>,
+    initialization_principal: Option<xs::AnyURI>,
     #[serde(rename = "Accessibility")]
     accessibility: Option<Vec<Descriptor>>,
     #[serde(rename = "Role")]
