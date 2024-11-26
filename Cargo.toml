@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-thiserror = { version = "1.0.64" }
+thiserror = { version = "2.0.3" }
 
 num = { version = "0.4.3", features = ["serde"] }
 chrono = { version = "0.4.38", features = ["serde"] }
@@ -18,7 +18,7 @@ derive_builder = { version = "0.20.2" }
 strum = { version = "0.26.3" }
 strum_macros = { version = "0.26.4" }
 
-quick-xml = { version = "0.36.2", features = ["serialize"] }
+quick-xml = { version = "0.37.1", features = ["serialize"] }
 
 [dev-dependencies]
 serde_plain = { version = "1" }
