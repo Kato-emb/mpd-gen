@@ -16,7 +16,7 @@ use super::segment::{SegmentBase, SegmentList, SegmentTemplate};
 )]
 pub struct Representation {
     #[serde(rename = "@id")]
-    id: NoWhitespace,
+    id: StringNoWhitespace,
     #[serde(rename = "@bandwidth")]
     bandwidth: u32,
     #[serde(rename = "@qualityRanking")]
@@ -231,7 +231,7 @@ mod tests {
     #[test]
     fn test_element_representation_vaild() {
         assert!(RepresentationBuilder::default()
-            .id(NoWhitespace::from_str("720p").unwrap())
+            .id(StringNoWhitespace::from_str("720p").unwrap())
             .bandwidth(2_000_000u32)
             .build()
             .is_ok());

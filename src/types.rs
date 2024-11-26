@@ -73,17 +73,25 @@ pub mod xs {
 
     pub const NAMESPACE: &str = "http://www.w3.org/2001/XMLSchema";
 
-    /// xsd:token
+    /// xsd:string
     ///
     /// # Replace
     /// * `&` -> `&amp;`
     /// * `<` -> `&lt;`
-    #[derive(Debug, Clone, PartialEq, Eq, Hash, SerializeDisplay, DeserializeFromStr)]
-    struct Token {
+    #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, SerializeDisplay, DeserializeFromStr)]
+    pub struct XsString {
         value: String,
     }
 
-    impl fmt::Display for Token {
+    impl Deref for XsString {
+        type Target = str;
+
+        fn deref(&self) -> &Self::Target {
+            &self.value
+        }
+    }
+
+    impl fmt::Display for XsString {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             write!(
                 f,
@@ -93,22 +101,227 @@ pub mod xs {
         }
     }
 
+    impl FromStr for XsString {
+        type Err = MpdError;
+
+        fn from_str(s: &str) -> Result<Self> {
+            if s.contains('&') && !s.contains("&amp;") {
+                return Err(MpdError::InvalidData("Unescaped '&' found"));
+            }
+
+            if s.contains('<') {
+                return Err(MpdError::InvalidData("Unescaped '<' found"));
+            }
+
+            let value = s.replace("&amp;", "&").replace("&lt;", "<");
+            Ok(Self { value })
+        }
+    }
+
+    /// xsd::normalizedString
+    ///
+    /// # Replace
+    /// * \r\n\t -> one space character
+    #[derive(Debug, Clone, PartialEq, Eq, Hash, SerializeDisplay, DeserializeFromStr)]
+    pub struct NormalizedString {
+        value: XsString,
+    }
+
+    impl Deref for NormalizedString {
+        type Target = str;
+
+        fn deref(&self) -> &Self::Target {
+            &self.value
+        }
+    }
+
+    impl fmt::Display for NormalizedString {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{}", self.value)
+        }
+    }
+
+    impl FromStr for NormalizedString {
+        type Err = MpdError;
+
+        fn from_str(s: &str) -> Result<Self> {
+            let vaule = s.replace("\r", " ").replace("\n", " ").replace("\t", " ");
+
+            Ok(Self {
+                value: XsString::from_str(&vaule)?,
+            })
+        }
+    }
+
+    /// xsd:token
+    ///
+    /// # Replace
+    /// * group of consecutive spaces -> one space character
+    #[derive(Debug, Clone, PartialEq, Eq, Hash, SerializeDisplay, DeserializeFromStr)]
+    pub struct Token {
+        value: NormalizedString,
+    }
+
+    impl Deref for Token {
+        type Target = str;
+
+        fn deref(&self) -> &Self::Target {
+            &self.value
+        }
+    }
+
+    impl fmt::Display for Token {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{}", self.value)
+        }
+    }
+
     impl FromStr for Token {
         type Err = MpdError;
 
         fn from_str(s: &str) -> Result<Self> {
-            let value = s.trim().replace("\n", " ").replace("\r\n", " ");
+            let mut value = NormalizedString::from_str(s.trim())?;
+            value.value.value = PATTERN_COLLAPSE_SPACES
+                .replace_all(&value.value.value, " ")
+                .to_string();
 
-            if value.contains('&') && !value.contains("&amp;") {
-                return Err(MpdError::InvalidData("Unescaped '&' found"));
-            }
-
-            if value.contains('<') {
-                return Err(MpdError::InvalidData("Unescaped '<' found"));
-            }
-
-            let value = value.replace("&amp;", "&").replace("&lt;", "<");
             Ok(Self { value })
+        }
+    }
+
+    /// xsd:Name
+    ///
+    /// # Pattern
+    /// `[A-Za-z_:][A-Za-z0-9_\:\-\.]*`
+    #[derive(Debug, Clone, PartialEq, Eq, Hash, SerializeDisplay, DeserializeFromStr)]
+    pub struct Name {
+        value: Token,
+    }
+
+    impl Deref for Name {
+        type Target = str;
+
+        fn deref(&self) -> &Self::Target {
+            &self.value
+        }
+    }
+
+    impl fmt::Display for Name {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{}", self.value)
+        }
+    }
+
+    impl FromStr for Name {
+        type Err = MpdError;
+
+        fn from_str(s: &str) -> Result<Self> {
+            let value = Token::from_str(s)?;
+
+            if !PATTERN_NAME.is_match(&value) {
+                return Err(MpdError::UnmatchedPattern);
+            }
+
+            Ok(Self { value })
+        }
+    }
+
+    /// xsd:NCName
+    ///
+    /// # Pattern
+    /// * colons are not permitted
+    #[derive(Debug, Clone, PartialEq, Eq, Hash, SerializeDisplay, DeserializeFromStr)]
+    pub struct NCName {
+        value: Name,
+    }
+
+    impl Deref for NCName {
+        type Target = str;
+
+        fn deref(&self) -> &Self::Target {
+            &self.value
+        }
+    }
+
+    impl fmt::Display for NCName {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{}", self.value)
+        }
+    }
+
+    impl FromStr for NCName {
+        type Err = MpdError;
+
+        fn from_str(s: &str) -> Result<Self> {
+            let value = Name::from_str(s)?;
+
+            if value.contains(':') {
+                return Err(MpdError::UnmatchedPattern);
+            }
+
+            Ok(Self { value })
+        }
+    }
+
+    /// xsd:ID
+    ///
+    /// # Safety
+    /// No check is made for uniqueness within an XML instance.
+    #[derive(Debug, Clone, PartialEq, Eq, Hash, SerializeDisplay, DeserializeFromStr)]
+    pub struct Id {
+        value: NCName,
+    }
+
+    impl Deref for Id {
+        type Target = str;
+
+        fn deref(&self) -> &Self::Target {
+            &self.value
+        }
+    }
+
+    impl fmt::Display for Id {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{}", self.value)
+        }
+    }
+
+    impl FromStr for Id {
+        type Err = MpdError;
+
+        fn from_str(s: &str) -> Result<Self> {
+            let value = NCName::from_str(s)?;
+
+            Ok(Self { value })
+        }
+    }
+
+    /// xsd:language
+    ///
+    /// # Pattern
+    /// `[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*`
+    #[derive(Debug, Clone, PartialEq, Eq, Hash, SerializeDisplay, DeserializeFromStr)]
+    pub struct Language {
+        token: Token,
+    }
+
+    impl fmt::Display for Language {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{}", self.token)
+        }
+    }
+
+    impl FromStr for Language {
+        type Err = MpdError;
+
+        fn from_str(s: &str) -> Result<Self> {
+            let token = Token::from_str(s)?;
+
+            if !PATTERN_LANG.is_match(&token.value) {
+                return Err(MpdError::UnmatchedPattern);
+            }
+
+            Ok(Self { token })
         }
     }
 
@@ -184,67 +397,6 @@ pub mod xs {
             Self {
                 value: value.into(),
             }
-        }
-    }
-
-    /// xsd:ID
-    ///
-    /// # Pattern
-    /// `[\i-[:]][\c-[:]]*`
-    ///
-    /// # Safety
-    /// No check is made for uniqueness within an XML instance.
-    #[derive(Debug, Clone, PartialEq, Eq, Hash, SerializeDisplay, DeserializeFromStr)]
-    pub struct Id {
-        token: Token,
-    }
-
-    impl fmt::Display for Id {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            write!(f, "{}", self.token)
-        }
-    }
-
-    impl FromStr for Id {
-        type Err = MpdError;
-
-        fn from_str(s: &str) -> Result<Self> {
-            let token = Token::from_str(s)?;
-
-            if !PATTERN_NC_NAME.is_match(&token.value) {
-                return Err(MpdError::UnmatchedPattern);
-            }
-
-            Ok(Self { token })
-        }
-    }
-
-    /// xsd:language
-    ///
-    /// # Pattern
-    /// `[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*`
-    #[derive(Debug, Clone, PartialEq, Eq, Hash, SerializeDisplay, DeserializeFromStr)]
-    pub struct Language {
-        token: Token,
-    }
-
-    impl fmt::Display for Language {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            write!(f, "{}", self.token)
-        }
-    }
-
-    impl FromStr for Language {
-        type Err = MpdError;
-
-        fn from_str(s: &str) -> Result<Self> {
-            let token = Token::from_str(s)?;
-
-            if !PATTERN_LANG.is_match(&token.value) {
-                return Err(MpdError::UnmatchedPattern);
-            }
-
-            Ok(Self { token })
         }
     }
 
@@ -460,6 +612,58 @@ pub mod xs {
         use super::*;
 
         #[test]
+        fn test_types_xs_string_serde() {
+            let value = XsString::from_str("example").unwrap();
+
+            let se = serde_plain::to_string(&value).unwrap();
+            let de = serde_plain::from_str::<XsString>(&se).unwrap();
+            assert_eq!(value, de);
+        }
+
+        #[test]
+        fn test_types_xs_string_valid() {
+            assert!(XsString::from_str("This is a string!").is_ok());
+            assert!(XsString::from_str("Édition française.").is_ok());
+            assert!(XsString::from_str("12.5").is_ok());
+            assert!(XsString::from_str("").is_ok());
+
+            assert_eq!(&*XsString::from_str("PB&amp;J").unwrap(), "PB&J");
+
+            assert_eq!(
+                &*XsString::from_str("   Separated by 3 spaces.").unwrap(),
+                "   Separated by 3 spaces."
+            );
+            assert_eq!(
+                &*XsString::from_str("This\nis on two lines.").unwrap(),
+                "This\nis on two lines."
+            );
+        }
+
+        #[test]
+        fn test_types_xs_string_invalid() {
+            assert!(XsString::from_str("AT&T").is_err());
+            assert!(XsString::from_str("3 < 4").is_err());
+        }
+
+        #[test]
+        fn test_types_xs_normalized_string_valid() {
+            assert!(NormalizedString::from_str("This is a string!").is_ok());
+            assert!(NormalizedString::from_str("Édition française.").is_ok());
+            assert!(NormalizedString::from_str("12.5").is_ok());
+            assert!(NormalizedString::from_str("").is_ok());
+
+            assert_eq!(&*NormalizedString::from_str("PB&amp;J").unwrap(), "PB&J");
+            assert_eq!(
+                &*NormalizedString::from_str("   Separated by 3 spaces.").unwrap(),
+                "   Separated by 3 spaces."
+            );
+            assert_eq!(
+                &*NormalizedString::from_str("This\n\r\tis on two lines.").unwrap(),
+                "This   is on two lines."
+            );
+        }
+
+        #[test]
         fn test_types_xs_token_serde() {
             let value = Token::from_str("example").unwrap();
 
@@ -475,17 +679,14 @@ pub mod xs {
             assert!(Token::from_str("12.5").is_ok());
             assert!(Token::from_str("").is_ok());
 
+            assert_eq!(&*Token::from_str("PB&amp;J").unwrap(), "PB&J");
             assert_eq!(
-                Token::from_str("PB&amp;J").unwrap().value,
-                "PB&J".to_string()
+                &*Token::from_str("   Separated by 3 spaces.").unwrap(),
+                "Separated by 3 spaces."
             );
             assert_eq!(
-                Token::from_str("   Separated by 3 spaces.").unwrap().value,
-                "Separated by 3 spaces.".to_string()
-            );
-            assert_eq!(
-                Token::from_str("This\nis on two lines.").unwrap().value,
-                "This is on two lines.".to_string()
+                &*Token::from_str("This\n\r\tis on two lines.").unwrap(),
+                "This is on two lines."
             );
         }
 
@@ -493,6 +694,83 @@ pub mod xs {
         fn test_types_xs_token_invalid() {
             assert!(Token::from_str("AT&T").is_err());
             assert!(Token::from_str("3 < 4").is_err());
+        }
+
+        #[test]
+        fn test_types_xs_name_valid() {
+            assert!(Name::from_str("myElement").is_ok());
+            assert!(Name::from_str("_my.Element").is_ok());
+            assert!(Name::from_str("my-element").is_ok());
+            assert!(Name::from_str("pre:myelement3").is_ok());
+        }
+
+        #[test]
+        fn test_types_xs_name_invalid() {
+            assert!(Name::from_str("-myelement").is_err());
+            assert!(Name::from_str("3rdElement").is_err());
+            assert!(Name::from_str("").is_err());
+        }
+
+        #[test]
+        fn test_types_xs_ncname_valid() {
+            assert!(NCName::from_str("myElement").is_ok());
+            assert!(NCName::from_str("_my.Element").is_ok());
+            assert!(NCName::from_str("my-element").is_ok());
+        }
+
+        #[test]
+        fn test_types_xs_ncname_invalid() {
+            assert!(NCName::from_str("pre:myElement").is_err());
+            assert!(NCName::from_str("-myelement").is_err());
+            assert!(NCName::from_str("").is_err());
+        }
+
+        #[test]
+        fn test_types_xs_id_serde() {
+            let value = Id::from_str("example").unwrap();
+
+            let se = serde_plain::to_string(&value).unwrap();
+            let de = serde_plain::from_str::<Id>(&se).unwrap();
+            assert_eq!(value, de);
+        }
+
+        #[test]
+        fn test_types_xs_id_valid() {
+            assert!(Id::from_str("myElement").is_ok());
+            assert!(Id::from_str("_my.Element").is_ok());
+            assert!(Id::from_str("my-Element").is_ok());
+        }
+
+        #[test]
+        fn test_types_xs_id_invalid() {
+            assert!(Id::from_str("pre:myElement").is_err());
+            assert!(Id::from_str("-myelement").is_err());
+            assert!(Id::from_str("").is_err());
+        }
+
+        #[test]
+        fn test_types_xs_lang_serde() {
+            let value = Language::from_str("en-US").unwrap();
+
+            let se = serde_plain::to_string(&value).unwrap();
+            let de = serde_plain::from_str::<Language>(&se).unwrap();
+            assert_eq!(value, de);
+        }
+
+        #[test]
+        fn test_types_xs_lang_valid() {
+            assert!(Language::from_str("en").is_ok());
+            assert!(Language::from_str("en-GB").is_ok());
+            assert!(Language::from_str("ja").is_ok());
+            assert!(Language::from_str("i-navajo").is_ok());
+            assert!(Language::from_str("x-Newspeak").is_ok());
+            assert!(Language::from_str("any-value-with-short-partsen").is_ok());
+        }
+
+        #[test]
+        fn test_types_xs_lang_invalid() {
+            assert!(Language::from_str("longerThan8").is_err());
+            assert!(Language::from_str("").is_err());
         }
 
         #[test]
@@ -527,59 +805,6 @@ pub mod xs {
             assert!(Integer::from_str("3.").is_err());
             assert!(Integer::from_str("3.0").is_err());
             assert!(Integer::from_str("").is_err());
-        }
-
-        #[test]
-        fn test_types_xs_id_serde() {
-            let value = Id::from_str("example").unwrap();
-
-            let se = serde_plain::to_string(&value).unwrap();
-            let de = serde_plain::from_str::<Id>(&se).unwrap();
-            assert_eq!(value, de);
-        }
-
-        #[test]
-        fn test_types_xs_id_valid() {
-            assert!(Id::from_str("myElement").is_ok());
-            assert!(Id::from_str("_my.Element").is_ok());
-            assert!(Id::from_str("my-Element").is_ok());
-
-            assert_eq!(
-                Id::from_str("  _my.Element").unwrap().to_string(),
-                "_my.Element".to_string()
-            );
-        }
-
-        #[test]
-        fn test_types_xs_id_invalid() {
-            assert!(Id::from_str("pre:myElement").is_err());
-            assert!(Id::from_str("-myelement").is_err());
-            assert!(Id::from_str("").is_err());
-        }
-
-        #[test]
-        fn test_types_xs_lang_serde() {
-            let value = Language::from_str("en-US").unwrap();
-
-            let se = serde_plain::to_string(&value).unwrap();
-            let de = serde_plain::from_str::<Language>(&se).unwrap();
-            assert_eq!(value, de);
-        }
-
-        #[test]
-        fn test_types_xs_lang_valid() {
-            assert!(Language::from_str("en").is_ok());
-            assert!(Language::from_str("en-GB").is_ok());
-            assert!(Language::from_str("ja").is_ok());
-            assert!(Language::from_str("i-navajo").is_ok());
-            assert!(Language::from_str("x-Newspeak").is_ok());
-            assert!(Language::from_str("any-value-with-short-partsen").is_ok());
-        }
-
-        #[test]
-        fn test_types_xs_lang_invalid() {
-            assert!(Language::from_str("longerThan8").is_err());
-            assert!(Language::from_str("").is_err());
         }
 
         #[test]
@@ -669,75 +894,61 @@ pub mod xs {
     }
 }
 
-/// 4CC as per latest 14496-12
-#[derive(Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct FourCC {
-    value: [u8; 4],
+/// String without white spaces
+///
+/// # Pattern
+/// `[^\r\n\t \p{Z}]*`
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, SerializeDisplay, DeserializeFromStr)]
+pub struct StringNoWhitespace {
+    value: xs::XsString,
 }
 
-impl Deref for FourCC {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        std::str::from_utf8(&self.value).unwrap()
+impl fmt::Display for StringNoWhitespace {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
     }
 }
 
-impl FromStr for FourCC {
+impl FromStr for StringNoWhitespace {
     type Err = MpdError;
 
     fn from_str(s: &str) -> Result<Self> {
-        if let [a, b, c, d] = s.as_bytes() {
-            Ok(Self {
-                value: [*a, *b, *c, *d],
-            })
-        } else {
-            Err(MpdError::UnmatchedPattern)
+        if !PATTERN_NO_WHITESPACE.is_match(s) {
+            return Err(MpdError::UnmatchedPattern);
         }
+
+        Ok(Self {
+            value: xs::XsString::from_str(s)?,
+        })
     }
 }
 
-impl From<u32> for FourCC {
-    fn from(number: u32) -> Self {
-        FourCC {
-            value: number.to_be_bytes(),
-        }
+/// Tag
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SerializeDisplay, DeserializeFromStr)]
+pub struct Tag {
+    value: xs::XsString,
+}
+
+impl fmt::Display for Tag {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
     }
 }
 
-impl From<FourCC> for u32 {
-    fn from(fourcc: FourCC) -> u32 {
-        (&fourcc).into()
-    }
-}
+impl FromStr for Tag {
+    type Err = MpdError;
 
-impl From<&FourCC> for u32 {
-    fn from(fourcc: &FourCC) -> u32 {
-        u32::from_be_bytes(fourcc.value)
-    }
-}
-
-impl From<[u8; 4]> for FourCC {
-    fn from(value: [u8; 4]) -> FourCC {
-        FourCC { value }
-    }
-}
-
-impl fmt::Debug for FourCC {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let code: u32 = self.into();
-        let string = String::from_utf8_lossy(&self.value[..]);
-        write!(f, "{string} / {code:#010X}")
-    }
-}
-
-impl fmt::Display for FourCC {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", String::from_utf8_lossy(&self.value[..]))
+    fn from_str(s: &str) -> Result<Self> {
+        Ok(Tag {
+            value: xs::XsString::from_str(s)?,
+        })
     }
 }
 
 /// Ratio Type for sar and par
+///
+/// # Pattern
+/// `[0-9]*:[0-9]*`
 #[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
 pub struct Ratio {
     horizontal: u32,
@@ -782,6 +993,9 @@ impl From<(u32, u32)> for Ratio {
 }
 
 /// Type for Frame Rate
+///
+/// # Pattern
+/// `[0-9]+(/[1-9][0-9]*)?`
 #[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
 pub struct FrameRate {
     value: rational::Ratio<u32>,
@@ -823,37 +1037,78 @@ impl FromStr for FrameRate {
     }
 }
 
-/// String without white spaces
-///
-/// base : xs:string
-#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
-pub struct NoWhitespace {
-    value: String,
+/// 4CC as per latest 14496-12
+#[derive(Default, Clone, PartialEq, Eq, Hash, SerializeDisplay, DeserializeFromStr)]
+pub struct FourCC {
+    value: [u8; 4],
 }
 
-impl fmt::Display for NoWhitespace {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.value)
+impl Deref for FourCC {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        std::str::from_utf8(&self.value).unwrap()
     }
 }
 
-impl FromStr for NoWhitespace {
+impl fmt::Debug for FourCC {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let code: u32 = self.into();
+        let string = String::from_utf8_lossy(&self.value[..]);
+        write!(f, "{string} / {code:#010X}")
+    }
+}
+
+impl fmt::Display for FourCC {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", String::from_utf8_lossy(&self.value[..]))
+    }
+}
+
+impl FromStr for FourCC {
     type Err = MpdError;
 
     fn from_str(s: &str) -> Result<Self> {
-        if !PATTERN_NO_WHITESPACE.is_match(s) {
-            return Err(MpdError::UnmatchedPattern);
+        if let [a, b, c, d] = s.as_bytes() {
+            Ok(Self {
+                value: [*a, *b, *c, *d],
+            })
+        } else {
+            Err(MpdError::UnmatchedPattern)
         }
+    }
+}
 
-        Ok(Self {
-            value: s.to_string(),
-        })
+impl From<u32> for FourCC {
+    fn from(number: u32) -> Self {
+        FourCC {
+            value: number.to_be_bytes(),
+        }
+    }
+}
+
+impl From<FourCC> for u32 {
+    fn from(fourcc: FourCC) -> u32 {
+        (&fourcc).into()
+    }
+}
+
+impl From<&FourCC> for u32 {
+    fn from(fourcc: &FourCC) -> u32 {
+        u32::from_be_bytes(fourcc.value)
+    }
+}
+
+impl From<[u8; 4]> for FourCC {
+    fn from(value: [u8; 4]) -> FourCC {
+        FourCC { value }
     }
 }
 
 /// Single RFC7233 Byte Range
 ///
-/// RFC7233
+/// # Pattern
+/// `([0-9]*)(\-([0-9]*))?`
 #[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
 pub struct SingleByteRange {
     first: u32,
@@ -914,76 +1169,6 @@ impl TryFrom<(u32, u32)> for SingleByteRange {
             first: value.0,
             last: Some(value.1),
         })
-    }
-}
-
-/// Type for RFC6838 Content Type
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "lowercase")]
-pub enum ContentType {
-    Text,
-    Image,
-    Audio,
-    #[default]
-    Video,
-    Application,
-    Font,
-}
-
-/// Stream Access Point type enumeration
-#[repr(u8)]
-#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
-pub enum StreamAccessPoint {
-    #[default]
-    /// Closed GoP random access point
-    ///
-    /// Tept = Tdec = Tsap = Tptf
-    Type1 = 1,
-    /// Closed GoP random access point
-    ///
-    /// Tept = Tdec = Tsap < Tptf
-    Type2 = 2,
-    /// Open GoP random access point
-    ///
-    /// Tept < Tdec = Tsap <= Tptf
-    Type3 = 3,
-    /// Gradual Decoding Refresh (GDR) random access point
-    ///
-    /// Tept <= Tptf < Tdec = Tsap
-    Type4 = 4,
-    /// Tept = Tdec < Tsap
-    Type5 = 5,
-    /// Tept < Tdec < Tsap
-    Type6 = 6,
-}
-
-impl TryFrom<u8> for StreamAccessPoint {
-    type Error = MpdError;
-
-    fn try_from(value: u8) -> Result<Self> {
-        match value {
-            1 => Ok(Self::Type1),
-            2 => Ok(Self::Type2),
-            3 => Ok(Self::Type3),
-            4 => Ok(Self::Type4),
-            5 => Ok(Self::Type5),
-            6 => Ok(Self::Type6),
-            _ => Err(MpdError::InvalidData("SAP values must be 1 to 6")),
-        }
-    }
-}
-
-impl fmt::Display for StreamAccessPoint {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.clone() as u8)
-    }
-}
-
-impl FromStr for StreamAccessPoint {
-    type Err = MpdError;
-
-    fn from_str(s: &str) -> Result<Self> {
-        Ok(StreamAccessPoint::try_from(s.parse::<u8>()?)?)
     }
 }
 
@@ -1090,141 +1275,6 @@ impl FromStr for Codecs {
             Ok(Self::Simp(SimpList::from_str(s)?))
         }
     }
-}
-
-/// Tag
-///
-/// base : xs:string
-#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
-pub struct Tag {
-    value: String,
-}
-
-impl fmt::Display for Tag {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.value)
-    }
-}
-
-impl FromStr for Tag {
-    type Err = MpdError;
-
-    fn from_str(s: &str) -> Result<Self> {
-        Ok(Tag {
-            value: s.to_string(),
-        })
-    }
-}
-
-impl<S> From<S> for Tag
-where
-    S: AsRef<str>,
-{
-    fn from(value: S) -> Self {
-        Self {
-            value: value.as_ref().to_string(),
-        }
-    }
-}
-
-/// Video Scan type enumeration
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "lowercase")]
-pub enum VideoScan {
-    Progressive,
-    InterLaced,
-    #[default]
-    Unknown,
-}
-
-/// Event Coding
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "lowercase")]
-pub enum ContentEncoding {
-    #[default]
-    Base64,
-}
-
-/// Switching Type type enumeration
-///
-/// ref : Table 7
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "lowercase")]
-pub enum SwitchingType {
-    #[default]
-    Media,
-    Bitstream,
-}
-
-/// Random Access Type type enumeration
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "lowercase")]
-pub enum RandomAccessType {
-    #[default]
-    Closed,
-    Open,
-    Gradual,
-}
-
-/// Producer Reference Time type enumeration
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "lowercase")]
-pub enum ProducerReferenceTimeType {
-    #[default]
-    Encoder,
-    Captured,
-    Application,
-}
-
-/// Rating Source type enumeration
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "lowercase")]
-pub enum Source {
-    #[default]
-    Content,
-    Statistics,
-    // need @source_description
-    Other,
-}
-
-/// Operating Quality parameters applied media type enumeration
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "lowercase")]
-pub enum QualityMediaType {
-    Video,
-    Audio,
-    #[default]
-    Any,
-}
-
-/// Operating Bandwidth parameters applied media type enumeration
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "lowercase")]
-pub enum BandwidthMediaType {
-    Video,
-    Audio,
-    Any,
-    #[default]
-    All,
-}
-
-/// Preselection Order type enumeration
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "kebab-case")]
-pub enum PreselectionOrderType {
-    #[default]
-    Undefined,
-    TimeOrdered,
-    FullyOrdered,
-}
-
-/// Presentation type enumeration
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "lowercase")]
-pub enum PresentationType {
-    #[default]
-    Static,
-    Dynamic,
 }
 
 /// List of Profiles
@@ -1387,15 +1437,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_types_fourcc_valid() {
-        assert!(FourCC::from_str("MPEG").is_ok());
+    fn test_types_string_no_whitespace_valid() {
+        assert!(StringNoWhitespace::from_str("HelloWorld").is_ok());
+        assert!(StringNoWhitespace::from_str("1234567890!?/\\@#_,.%$\'\"").is_ok());
     }
 
     #[test]
-    fn test_types_fourcc_invalid() {
-        assert!(FourCC::from_str("MPEG2").is_err());
-        assert!(FourCC::from_str(" mpeg").is_err());
-        assert!(FourCC::from_str("a").is_err());
+    fn test_types_string_no_whitespace_invalid() {
+        assert!(StringNoWhitespace::from_str("Hello World").is_err());
+        assert!(StringNoWhitespace::from_str("Hello\nWorld").is_err());
+        assert!(StringNoWhitespace::from_str("Hello\r\nWorld").is_err());
+        assert!(StringNoWhitespace::from_str("Hello\tWorld").is_err());
     }
 
     #[test]
@@ -1455,24 +1507,22 @@ mod tests {
     }
 
     #[test]
-    fn test_types_no_whitespace_valid() {
-        assert!(NoWhitespace::from_str("HelloWorld").is_ok());
-        assert!(NoWhitespace::from_str("1234567890!?/\\@#_,.%$\'\"").is_ok());
+    fn test_types_fourcc_valid() {
+        assert!(FourCC::from_str("MPEG").is_ok());
     }
 
     #[test]
-    fn test_types_no_whitespace_invalid() {
-        assert!(NoWhitespace::from_str("Hello World").is_err());
-        assert!(NoWhitespace::from_str("Hello\nWorld").is_err());
-        assert!(NoWhitespace::from_str("Hello\r\nWorld").is_err());
-        assert!(NoWhitespace::from_str("Hello\tWorld").is_err());
+    fn test_types_fourcc_invalid() {
+        assert!(FourCC::from_str("MPEG2").is_err());
+        assert!(FourCC::from_str(" mpeg").is_err());
+        assert!(FourCC::from_str("a").is_err());
     }
 
     #[test]
-    fn test_types_no_whitespace_parse() {
-        let input = "1234567890!?/\\@#_,.%$\'\"";
-        let no_whitespace = NoWhitespace::from_str("1234567890!?/\\@#_,.%$\'\"").unwrap();
-        assert_eq!(&no_whitespace.to_string(), input);
+    fn test_types_fourcc_parse() {
+        let input = "MPEG";
+        let fourcc = FourCC::from_str(&input).unwrap();
+        assert_eq!(&fourcc.to_string(), input);
     }
 
     #[test]
@@ -1642,4 +1692,174 @@ mod tests {
         assert!(AudioSamplingRate::from_str("1 2 3").is_err());
         assert!(AudioSamplingRate::from_str("").is_err());
     }
+}
+
+/// Type for RFC6838 Content Type
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum ContentType {
+    Text,
+    Image,
+    Audio,
+    #[default]
+    Video,
+    Application,
+    Font,
+}
+
+/// Stream Access Point type enumeration
+#[repr(u8)]
+#[derive(Debug, Default, Clone, SerializeDisplay, DeserializeFromStr, PartialEq, Eq, Hash)]
+pub enum StreamAccessPoint {
+    #[default]
+    /// Closed GoP random access point
+    ///
+    /// Tept = Tdec = Tsap = Tptf
+    Type1 = 1,
+    /// Closed GoP random access point
+    ///
+    /// Tept = Tdec = Tsap < Tptf
+    Type2 = 2,
+    /// Open GoP random access point
+    ///
+    /// Tept < Tdec = Tsap <= Tptf
+    Type3 = 3,
+    /// Gradual Decoding Refresh (GDR) random access point
+    ///
+    /// Tept <= Tptf < Tdec = Tsap
+    Type4 = 4,
+    /// Tept = Tdec < Tsap
+    Type5 = 5,
+    /// Tept < Tdec < Tsap
+    Type6 = 6,
+}
+
+impl TryFrom<u8> for StreamAccessPoint {
+    type Error = MpdError;
+
+    fn try_from(value: u8) -> Result<Self> {
+        match value {
+            1 => Ok(Self::Type1),
+            2 => Ok(Self::Type2),
+            3 => Ok(Self::Type3),
+            4 => Ok(Self::Type4),
+            5 => Ok(Self::Type5),
+            6 => Ok(Self::Type6),
+            _ => Err(MpdError::InvalidData("SAP values must be 1 to 6")),
+        }
+    }
+}
+
+impl fmt::Display for StreamAccessPoint {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.clone() as u8)
+    }
+}
+
+impl FromStr for StreamAccessPoint {
+    type Err = MpdError;
+
+    fn from_str(s: &str) -> Result<Self> {
+        Ok(StreamAccessPoint::try_from(s.parse::<u8>()?)?)
+    }
+}
+
+/// Video Scan type enumeration
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum VideoScan {
+    Progressive,
+    InterLaced,
+    #[default]
+    Unknown,
+}
+
+/// Event Coding
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum ContentEncoding {
+    #[default]
+    Base64,
+}
+
+/// Switching Type type enumeration
+///
+/// ref : Table 7
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum SwitchingType {
+    #[default]
+    Media,
+    Bitstream,
+}
+
+/// Random Access Type type enumeration
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum RandomAccessType {
+    #[default]
+    Closed,
+    Open,
+    Gradual,
+}
+
+/// Producer Reference Time type enumeration
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum ProducerReferenceTimeType {
+    #[default]
+    Encoder,
+    Captured,
+    Application,
+}
+
+/// Rating Source type enumeration
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum Source {
+    #[default]
+    Content,
+    Statistics,
+    // need @source_description
+    Other,
+}
+
+/// Operating Quality parameters applied media type enumeration
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum QualityMediaType {
+    Video,
+    Audio,
+    #[default]
+    Any,
+}
+
+/// Operating Bandwidth parameters applied media type enumeration
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum BandwidthMediaType {
+    Video,
+    Audio,
+    Any,
+    #[default]
+    All,
+}
+
+/// Preselection Order type enumeration
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "kebab-case")]
+pub enum PreselectionOrderType {
+    #[default]
+    Undefined,
+    TimeOrdered,
+    FullyOrdered,
+}
+
+/// Presentation type enumeration
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum PresentationType {
+    #[default]
+    Static,
+    Dynamic,
 }

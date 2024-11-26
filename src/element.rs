@@ -290,7 +290,7 @@ pub struct ContentProtection {
     #[serde(rename = "@refId")]
     ref_id: Option<xs::Id>,
     #[serde(rename = "@robustness")]
-    robustness: Option<NoWhitespace>,
+    robustness: Option<StringNoWhitespace>,
 }
 
 #[skip_serializing_none]
@@ -747,7 +747,7 @@ impl CustomValidate for SubsetBuilder {
 )]
 pub struct Preselection {
     #[serde(rename = "@id")]
-    id: Option<NoWhitespace>,
+    id: Option<StringNoWhitespace>,
     #[serde(rename = "@preselectionComponents")]
     preselection_components: StringVector,
     #[serde(rename = "@lang")]
