@@ -2,8 +2,15 @@ use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
-use crate::element::*;
-use crate::types::*;
+use crate::element::{
+    BaseURL, ContentPopularityRate, ContentProtection, CustomValidate, Descriptor, EventStream,
+    ExtendedBandwidth, GroupLavel, Label, MpdError, ProducerReferenceTime, RandomAccess, Result,
+    Resync, Switching,
+};
+use crate::types::{
+    AudioSamplingRate, Codecs, FrameRate, ListOfFourCC, ListOfProfiles, Ratio, StreamAccessPoint,
+    StringNoWhitespace, StringVector, Tag, UIntVector, VideoScan,
+};
 
 use super::segment::{SegmentBase, SegmentList, SegmentTemplate};
 
@@ -16,7 +23,7 @@ use super::segment::{SegmentBase, SegmentList, SegmentTemplate};
 )]
 pub struct Representation {
     #[serde(rename = "@id")]
-    id: NoWhitespace,
+    id: StringNoWhitespace,
     #[serde(rename = "@bandwidth")]
     bandwidth: u32,
     #[serde(rename = "@qualityRanking")]
@@ -108,11 +115,13 @@ pub struct Representation {
 }
 
 impl Representation {
+    #[must_use]
     pub fn id(&self) -> String {
         self.id.to_string()
     }
 
-    pub fn bandwidth(&self) -> u32 {
+    #[must_use]
+    pub const fn bandwidth(&self) -> u32 {
         self.bandwidth
     }
 }
@@ -231,7 +240,7 @@ mod tests {
     #[test]
     fn test_element_representation_vaild() {
         assert!(RepresentationBuilder::default()
-            .id(NoWhitespace::from_str("720p").unwrap())
+            .id(StringNoWhitespace::from_str("720p").unwrap())
             .bandwidth(2_000_000u32)
             .build()
             .is_ok());

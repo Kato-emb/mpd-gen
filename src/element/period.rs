@@ -2,8 +2,11 @@ use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
-use crate::element::*;
-use crate::types::*;
+use crate::element::{
+    BaseURL, ContentProtection, Descriptor, EventStream, GroupLavel, MpdError, Preselection,
+    ServiceDescription, Subset,
+};
+use crate::types::{xlink, xs};
 
 use super::{
     adapt::AdaptationSet,
@@ -15,15 +18,15 @@ use super::{
 #[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct Period {
     #[serde(rename = "@xlink:href")]
-    href: Option<String>,
+    href: Option<xlink::Href>,
     #[serde(rename = "@xlink:actuate")]
-    actuate: Option<XLinkActure>,
+    actuate: Option<xlink::Actuate>,
     #[serde(rename = "@id")]
     id: Option<u32>,
     #[serde(rename = "@start")]
-    start: Option<XsDuration>,
+    start: Option<xs::Duration>,
     #[serde(rename = "@duration")]
-    duration: Option<XsDuration>,
+    duration: Option<xs::Duration>,
     #[serde(rename = "@bitstreamSwitching")]
     bitstream_switching: Option<bool>,
     #[serde(rename = "BaseURL")]

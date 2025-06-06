@@ -8,10 +8,18 @@ use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
-use crate::types::*;
+use crate::types::{
+    xlink, xs, AudioSamplingRate, BandwidthMediaType, Codecs, ContentEncoding, ContentType,
+    FrameRate, ListOfFourCC, ListOfProfiles, PreselectionOrderType, ProducerReferenceTimeType,
+    QualityMediaType, RandomAccessType, Ratio, SingleByteRange, Source, StreamAccessPoint,
+    StringNoWhitespace, StringVector, SwitchingType, Tag, UIntVector, VideoScan,
+};
 use crate::{MpdError, Result};
 
 pub trait CustomValidate {
+    /// Validate the builder's fields before building the final object
+    /// # Errors
+    /// Returns an error if validation fails.
     fn validate(&self) -> Result<()>;
 }
 
@@ -21,9 +29,9 @@ pub trait CustomValidate {
 #[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct ProgramInformation {
     #[serde(rename = "@lang")]
-    lang: Option<XsLanguage>,
+    lang: Option<xs::Language>,
     #[serde(rename = "@moreInformationURL")]
-    more_information_url: Option<XsAnyURI>,
+    more_information_url: Option<xs::AnyURI>,
     #[serde(rename = "Title")]
     title: Option<String>,
     #[serde(rename = "Source")]
@@ -38,7 +46,7 @@ pub struct ProgramInformation {
 #[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct PatchLocation {
     #[serde(rename = "$text")]
-    base: XsAnyURI,
+    base: xs::AnyURI,
     #[serde(rename = "@ttl")]
     ttl: Option<f64>,
 }
@@ -49,9 +57,9 @@ pub struct PatchLocation {
 #[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct InitializationSet {
     #[serde(rename = "@xlink:href", alias = "href")]
-    href: Option<String>,
+    href: Option<xlink::Href>,
     #[serde(rename = "@xlink:actuate", alias = "actuate")]
-    actuate: Option<XLinkActure>,
+    actuate: Option<xlink::Actuate>,
     #[serde(rename = "@id")]
     id: u32,
     #[serde(rename = "@inAllPeriods")]
@@ -67,7 +75,7 @@ pub struct InitializationSet {
     #[serde(rename = "@maxFrameRate")]
     max_framerate: Option<FrameRate>,
     #[serde(rename = "@initialization")]
-    initialization: Option<XsAnyURI>,
+    initialization: Option<xs::AnyURI>,
     // common attributes elements
     #[serde(rename = "@profiles")]
     profiles: Option<ListOfProfiles>,
@@ -179,9 +187,9 @@ impl CustomValidate for UIntVWithIDBuilder {
 #[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct MetricsRange {
     #[serde(rename = "@starttime")]
-    start_time: Option<XsDuration>,
+    start_time: Option<xs::Duration>,
     #[serde(rename = "@duration")]
-    duration: Option<XsDuration>,
+    duration: Option<xs::Duration>,
 }
 
 /// Metrics
@@ -207,7 +215,7 @@ impl CustomValidate for MetricsBuilder {
             Err(MpdError::ValidationError(
                 "Metrics must be set @metrics attribute",
             ))
-        } else if !self.reporting.as_ref().is_some_and(|rep| !rep.is_empty()) {
+        } else if self.reporting.as_ref().is_none_or(Vec::is_empty) {
             Err(MpdError::ValidationError(
                 "Metrics must be set Reporting element longer than 0",
             ))
@@ -231,7 +239,7 @@ pub struct LeapSecondInformation {
     #[serde(rename = "@nextAvailabilityStartLeapOffset")]
     next_availability_start_leap_offset: Option<i32>,
     #[serde(rename = "@nextLeapChangeTime")]
-    next_leap_change_time: Option<XsDateTime>,
+    next_leap_change_time: Option<xs::DateTime>,
 }
 
 impl CustomValidate for LeapSecondInformationBuilder {
@@ -258,7 +266,7 @@ impl CustomValidate for LeapSecondInformationBuilder {
 )]
 pub struct Descriptor {
     #[serde(rename = "@schemeIdUri")]
-    scheme_id_uri: XsAnyURI,
+    scheme_id_uri: xs::AnyURI,
     #[serde(rename = "@value", skip_serializing_if = "Option::is_none")]
     value: Option<String>,
     #[serde(rename = "@id", skip_serializing_if = "Option::is_none")]
@@ -279,18 +287,18 @@ impl CustomValidate for DescriptorBuilder {
 
 /// Table 33
 ///
-/// refとref_idはどちらか一方しか存在できない
+/// `refとref_idはどちらか一方しか存在できない`
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
 #[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct ContentProtection {
     #[serde(flatten)]
     descriptor: Descriptor,
     #[serde(rename = "@ref")]
-    r#ref: Option<XsId>,
+    r#ref: Option<xs::Id>,
     #[serde(rename = "@refId")]
-    ref_id: Option<XsId>,
+    ref_id: Option<xs::Id>,
     #[serde(rename = "@robustness")]
-    robustness: Option<NoWhitespace>,
+    robustness: Option<StringNoWhitespace>,
 }
 
 #[skip_serializing_none]
@@ -319,11 +327,11 @@ pub struct Event {
 )]
 pub struct EventStream {
     #[serde(rename = "@xlink:href")]
-    href: Option<String>,
+    href: Option<xlink::Href>,
     #[serde(rename = "@xlink:actuate")]
-    actuate: Option<XLinkActure>,
+    actuate: Option<xlink::Actuate>,
     #[serde(rename = "@schemeIdUri")]
-    scheme_id_uri: XsAnyURI,
+    scheme_id_uri: xs::AnyURI,
     #[serde(rename = "@value")]
     value: Option<String>,
     #[serde(rename = "@timescale")]
@@ -383,7 +391,7 @@ pub struct RandomAccess {
     #[serde(rename = "@type")]
     r#type: Option<RandomAccessType>,
     #[serde(rename = "@minBufferTime")]
-    min_buffer_time: Option<XsDuration>,
+    min_buffer_time: Option<xs::Duration>,
     #[serde(rename = "@bandwidth")]
     bandwidth: Option<u32>,
 }
@@ -407,7 +415,7 @@ pub struct Label {
     #[serde(rename = "@id")]
     id: Option<u32>,
     #[serde(rename = "@lang")]
-    lang: Option<XsLanguage>,
+    lang: Option<xs::Language>,
 }
 
 pub type GroupLavel = Label;
@@ -478,12 +486,12 @@ impl CustomValidate for PopularityRateBuilder {
     fn validate(&self) -> Result<()> {
         match self.popularity_rate.as_ref() {
             Some(rate) => {
-                if !(1..=100).contains(rate) {
+                if (1..=100).contains(rate) {
+                    Ok(())
+                } else {
                     Err(MpdError::ValidationError(
                         "The value shall be in the range of 1 to 100.",
                     ))
-                } else {
-                    Ok(())
                 }
             }
             None => Err(MpdError::ValidationError(
@@ -515,11 +523,7 @@ impl CustomValidate for ContentPopularityRateBuilder {
             Err(MpdError::ValidationError(
                 "ContentPopularityRate must be set @source",
             ))
-        } else if !self
-            .popularity_rates
-            .as_ref()
-            .is_some_and(|rates| !rates.is_empty())
-        {
+        } else if self.popularity_rates.as_ref().is_none_or(Vec::is_empty) {
             Err(MpdError::ValidationError(
                 "ContentPopularityRate must be set PR longer than 0",
             ))
@@ -550,7 +554,7 @@ pub struct Resync {
 #[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct BaseURL {
     #[serde(rename = "$text")]
-    base: XsAnyURI,
+    base: xs::AnyURI,
     #[serde(rename = "@serviceLocation")]
     service_location: Option<String>,
     #[serde(rename = "@byteRange")]
@@ -560,7 +564,7 @@ pub struct BaseURL {
     #[serde(rename = "@availabilityTimeComplete")]
     availability_time_complete: Option<bool>,
     #[serde(rename = "@timeShiftBufferDepth")]
-    time_shift_buffer_depth: Option<XsDuration>,
+    time_shift_buffer_depth: Option<xs::Duration>,
     #[serde(rename = "@rangeAccess")]
     range_access: Option<bool>,
 }
@@ -573,7 +577,7 @@ pub struct BaseURL {
 )]
 pub struct ModelPair {
     #[serde(rename = "@bufferTime")]
-    buffer_time: XsDuration,
+    buffer_time: xs::Duration,
     #[serde(rename = "@bandwidth")]
     bandwidth: u32,
 }
@@ -607,7 +611,7 @@ pub struct ContentComponent {
     #[serde(rename = "@id")]
     id: Option<u32>,
     #[serde(rename = "@lang")]
-    lang: Option<XsLanguage>,
+    lang: Option<xs::Language>,
     #[serde(rename = "@contentType")]
     content_type: Option<ContentType>,
     #[serde(rename = "@par")]
@@ -661,7 +665,7 @@ pub struct OperatingQuality {
     #[serde(rename = "@target")]
     target_quality_ranking: Option<i32>,
     #[serde(rename = "@type")]
-    quality_ranking_type: Option<XsAnyURI>,
+    quality_ranking_type: Option<xs::AnyURI>,
     #[serde(rename = "@maxDifference")]
     max_quality_difference: Option<i32>,
 }
@@ -747,11 +751,11 @@ impl CustomValidate for SubsetBuilder {
 )]
 pub struct Preselection {
     #[serde(rename = "@id")]
-    id: Option<NoWhitespace>,
+    id: Option<StringNoWhitespace>,
     #[serde(rename = "@preselectionComponents")]
     preselection_components: StringVector,
     #[serde(rename = "@lang")]
-    lang: Option<XsLanguage>,
+    lang: Option<xs::Language>,
     #[serde(rename = "@order")]
     order: Option<PreselectionOrderType>,
     #[serde(rename = "Accessibility")]
@@ -845,7 +849,7 @@ impl CustomValidate for PreselectionBuilder {
 #[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct Url {
     #[serde(rename = "@sourceURL")]
-    pub source_url: Option<XsAnyURI>,
+    pub source_url: Option<xs::AnyURI>,
     #[serde(rename = "@range")]
     pub range: Option<SingleByteRange>,
 }
@@ -890,7 +894,7 @@ pub struct FailoverContent {
 
 impl CustomValidate for FailoverContentBuilder {
     fn validate(&self) -> Result<()> {
-        if !self.fcs_list.as_ref().is_some_and(|list| !list.is_empty()) {
+        if self.fcs_list.as_ref().is_none_or(Vec::is_empty) {
             Err(MpdError::ValidationError(
                 "FailoverContent must be set FCS longer than 0",
             ))
@@ -905,11 +909,11 @@ impl CustomValidate for FailoverContentBuilder {
 #[serde(rename = "SegmentURL")]
 pub struct SegmentUrl {
     #[serde(rename = "@media")]
-    media: Option<XsAnyURI>,
+    media: Option<xs::AnyURI>,
     #[serde(rename = "@mediaRange")]
     media_range: Option<SingleByteRange>,
     #[serde(rename = "@index")]
-    index: Option<XsAnyURI>,
+    index: Option<xs::AnyURI>,
     #[serde(rename = "@indexRange")]
     index_range: Option<SingleByteRange>,
 }

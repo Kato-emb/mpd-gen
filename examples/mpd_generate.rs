@@ -2,9 +2,9 @@ use std::str::FromStr;
 
 use mpd_gen::{
     AdaptationSetBuilder, BaseURLBuilder, Codecs, ContentType, DescriptorBuilder, MPDBuilder,
-    NoWhitespace, PeriodBuilder, PresentationType, Profile, RepresentationBuilder, SegmentBuilder,
-    SegmentTemplateBuilder, SegmentTimelineBuilder, StreamAccessPoint, VideoScan,
-    DASH_DVB_EXTENTION, ROLE_SCHEME,
+    PeriodBuilder, PresentationType, Profile, RepresentationBuilder, SegmentBuilder,
+    SegmentTemplateBuilder, SegmentTimelineBuilder, StreamAccessPoint, StringNoWhitespace,
+    VideoScan, DASH_DVB_EXTENTION, ROLE_SCHEME,
 };
 
 fn main() {
@@ -27,7 +27,7 @@ fn main() {
         .unwrap();
 
     let repr = RepresentationBuilder::default()
-        .id(NoWhitespace::from_str("720p").unwrap())
+        .id(StringNoWhitespace::from_str("720p").unwrap())
         .codecs(Codecs::from_str("avc1.4d0028").unwrap())
         .bandwidth(4_000_000u32)
         .width(1280u32)

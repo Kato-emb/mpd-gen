@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use strum_macros::{Display, EnumString};
 
-use crate::{define_regex, entity::*, error::MpdError, Result};
+use crate::{define_regex, entity::PATTERN_PROFILE, error::MpdError, Result};
 
 pub const XML_DECLARATION: &str = r#"<?xml version="1.0" encoding="UTF-8"?>"#;
 
@@ -104,18 +104,18 @@ mod tests {
     #[test]
     fn test_definition_period_signalling_parse() {
         let input = "urn:mpeg:dash:period-continuity:2015";
-        let signalling = PeriodSignalling::from_str(&input).unwrap();
+        let signalling = PeriodSignalling::from_str(input).unwrap();
         assert_eq!(&signalling.to_string(), input);
     }
 
     #[test]
     fn test_definition_profile_parse() {
         let input = "urn:mpeg:dash:profile:full:2011";
-        let profile = Profile::from_str(&input).unwrap();
+        let profile = Profile::from_str(input).unwrap();
         assert_eq!(profile, Profile::Full);
 
         let input = "https://example.com";
-        let profile = Profile::from_str(&input).unwrap();
+        let profile = Profile::from_str(input).unwrap();
         assert_eq!(profile, Profile::Other(input.to_string()));
     }
 
@@ -143,6 +143,6 @@ mod tests {
             })
             .to_string();
 
-        assert_eq!(replace_str, "720p/2000000/1000.cmfv".to_string())
+        assert_eq!(replace_str, "720p/2000000/1000.cmfv".to_string());
     }
 }

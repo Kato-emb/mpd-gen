@@ -1,10 +1,12 @@
 use crate::define_regex;
 
+const COLLAPSE_SPACES: &str = r"\s+";
+
 /// XML Schema pattern: `[\-+]?[0-9]+`
 const INTEGER: &str = r"[\-\+]?[0-9]+";
 
 /// XML Schema pattern: `[\i-[:]][\c-[:]]*`
-const NC_NAME: &str = r"[A-Za-z_][A-Za-z0-9_\-\.]*";
+const NAME: &str = r"[A-Za-z_:][A-Za-z0-9_\:\-\.]*";
 
 /// XML Schema pattern: `[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*`
 const LANGUAGE: &str = r"[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*";
@@ -23,8 +25,9 @@ const NO_WHITESPACE: &str = r"[^\r\n\t \p{Z}]*";
 const URN: &str = r"urn:[a-zA-Z0-9\-]+(:[a-zA-Z0-9\-]+)*";
 const URL: &str = r"https?://[a-zA-Z0-9\-._~:/?#\[@\]!$&'()*+,;=]+";
 
+define_regex!(PATTERN_COLLAPSE_SPACES, "{}", COLLAPSE_SPACES);
 define_regex!(PATTERN_INTEGER, "^{}$", INTEGER);
-define_regex!(PATTERN_NC_NAME, "^{}$", NC_NAME);
+define_regex!(PATTERN_NAME, "^{}$", NAME);
 define_regex!(PATTERN_LANG, "^{}$", LANGUAGE);
 
 define_regex!(PATTERN_PROFILE, "^({0}|{1})((,({0}|{1}))*)$", URN, URL);

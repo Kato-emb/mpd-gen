@@ -2,8 +2,14 @@ use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
-use crate::element::*;
-use crate::types::*;
+use crate::element::{
+    BaseURL, ContentComponent, ContentPopularityRate, ContentProtection, Descriptor, EventStream,
+    GroupLavel, Label, MpdError, ProducerReferenceTime, RandomAccess, Resync, Switching,
+};
+use crate::types::{
+    xlink, xs, AudioSamplingRate, Codecs, ContentType, FrameRate, ListOfFourCC, ListOfProfiles,
+    Ratio, StreamAccessPoint, Tag, UIntVector, VideoScan,
+};
 
 use super::{
     repr::Representation,
@@ -15,9 +21,9 @@ use super::{
 #[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct AdaptationSet {
     #[serde(rename = "@xlink:href")]
-    href: Option<String>,
+    href: Option<xlink::Href>,
     #[serde(rename = "@xlink:actuate")]
-    actuate: Option<XLinkActure>,
+    actuate: Option<xlink::Actuate>,
     #[serde(rename = "@id")]
     id: Option<u32>,
     #[serde(rename = "@group")]
@@ -87,7 +93,7 @@ pub struct AdaptationSet {
     resync: Option<Vec<Resync>>,
     // common attributes elements
     #[serde(rename = "@lang")]
-    lang: Option<XsLanguage>,
+    lang: Option<xs::Language>,
     #[serde(rename = "@contentType")]
     content_type: Option<ContentType>,
     #[serde(rename = "@par")]
@@ -119,7 +125,7 @@ pub struct AdaptationSet {
     #[serde(rename = "@initializationSetRef")]
     initialization_set_ref: Option<UIntVector>,
     #[serde(rename = "@initializationPrincipal")]
-    initialization_principal: Option<XsAnyURI>,
+    initialization_principal: Option<xs::AnyURI>,
     #[serde(rename = "Accessibility")]
     accessibility: Option<Vec<Descriptor>>,
     #[serde(rename = "Role")]
@@ -148,7 +154,7 @@ mod tests {
 
     use crate::{
         element::{repr::RepresentationBuilder, segment::SegmentTemplateBuilder},
-        SegmentBuilder, SegmentTimelineBuilder,
+        SegmentBuilder, SegmentTimelineBuilder, StringNoWhitespace,
     };
 
     use super::*;
@@ -175,7 +181,7 @@ mod tests {
             .unwrap();
 
         let representation = RepresentationBuilder::default()
-            .id(NoWhitespace::from_str("720p").unwrap())
+            .id(StringNoWhitespace::from_str("720p").unwrap())
             .codecs(Codecs::from_str("avc1.4d0028").unwrap())
             .bandwidth(4_000_000u32)
             .width(1280u32)

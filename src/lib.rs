@@ -1,3 +1,6 @@
+#![warn(clippy::all, clippy::pedantic)]
+#![allow(clippy::struct_field_names)]
+
 mod definition;
 mod element;
 mod entity;
