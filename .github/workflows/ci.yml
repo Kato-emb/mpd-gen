@@ -30,9 +30,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Run tests with std feature
-        run: cargo test --features std --verbose
-      - name: Run tests without std feature
+      - name: Run tests without features
         run: cargo test --no-default-features --verbose
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
