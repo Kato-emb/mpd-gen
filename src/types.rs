@@ -1502,11 +1502,11 @@ mod tests {
     #[test]
     fn test_types_ratio_parse() {
         let input = "16:9";
-        let ratio = Ratio::from_str(&input).unwrap();
+        let ratio = Ratio::from_str(input).unwrap();
         assert_eq!(&ratio.to_string(), input);
 
         let input = "0:0";
-        let ratio = Ratio::from_str(&input).unwrap();
+        let ratio = Ratio::from_str(input).unwrap();
         assert_eq!(&ratio.to_string(), input);
     }
 
@@ -1531,11 +1531,11 @@ mod tests {
     #[test]
     fn test_types_framerate_parse() {
         let input = "30/1";
-        let framerate = FrameRate::from_str(&input).unwrap();
+        let framerate = FrameRate::from_str(input).unwrap();
         assert_eq!(&framerate.to_string(), input);
 
         let input = "60";
-        let framerate = FrameRate::from_str(&input).unwrap();
+        let framerate = FrameRate::from_str(input).unwrap();
         assert_eq!(&framerate.to_string(), "60/1");
     }
 
@@ -1554,7 +1554,7 @@ mod tests {
     #[test]
     fn test_types_fourcc_parse() {
         let input = "MPEG";
-        let fourcc = FourCC::from_str(&input).unwrap();
+        let fourcc = FourCC::from_str(input).unwrap();
         assert_eq!(&fourcc.to_string(), input);
     }
 
@@ -1578,11 +1578,11 @@ mod tests {
     #[test]
     fn test_types_single_byte_range_parse() {
         let input = "0-499";
-        let range = SingleByteRange::from_str(&input).unwrap();
+        let range = SingleByteRange::from_str(input).unwrap();
         assert_eq!(&range.to_string(), input);
 
         let input = "500-";
-        let range = SingleByteRange::from_str(&input).unwrap();
+        let range = SingleByteRange::from_str(input).unwrap();
         assert_eq!(&range.to_string(), input);
     }
 
@@ -1607,11 +1607,11 @@ mod tests {
     #[test]
     fn test_types_fancy_list_parse() {
         let input = "UTF-8'en'avc1.42E01E,mp4a.40.2";
-        let fancy_list = FancyList::from_str(&input).unwrap();
+        let fancy_list = FancyList::from_str(input).unwrap();
         assert_eq!(&fancy_list.to_string(), input);
 
         let input = "avc1.42E01E,mp4a.40.2";
-        let fancy_list = FancyList::from_str(&input).unwrap();
+        let fancy_list = FancyList::from_str(input).unwrap();
         assert_eq!(&fancy_list.to_string(), input);
     }
 
@@ -1633,29 +1633,29 @@ mod tests {
     #[test]
     fn test_types_simp_list_parse() {
         let input = "avc1";
-        let simp_list = SimpList::from_str(&input).unwrap();
+        let simp_list = SimpList::from_str(input).unwrap();
         assert_eq!(&simp_list.to_string(), input);
 
         let input = "avc1,mp4a";
-        let simp_list = SimpList::from_str(&input).unwrap();
+        let simp_list = SimpList::from_str(input).unwrap();
         assert_eq!(&simp_list.to_string(), input);
     }
 
     #[test]
     fn test_types_codecs_parse() {
         let input = "UTF-8'en'avc1.42E01E,mp4a.40.2";
-        let codecs = Codecs::from_str(&input).unwrap();
-        assert_eq!(codecs, Codecs::Fancy(FancyList::from_str(&input).unwrap()));
+        let codecs = Codecs::from_str(input).unwrap();
+        assert_eq!(codecs, Codecs::Fancy(FancyList::from_str(input).unwrap()));
         assert_eq!(&codecs.to_string(), input);
 
         let input = "avc1.42E01E,mp4a";
-        let codecs = Codecs::from_str(&input).unwrap();
-        assert_eq!(codecs, Codecs::Fancy(FancyList::from_str(&input).unwrap()));
+        let codecs = Codecs::from_str(input).unwrap();
+        assert_eq!(codecs, Codecs::Fancy(FancyList::from_str(input).unwrap()));
         assert_eq!(&codecs.to_string(), input);
 
         let input = "avc1,mp4a";
-        let codecs = Codecs::from_str(&input).unwrap();
-        assert_eq!(codecs, Codecs::Simp(SimpList::from_str(&input).unwrap()));
+        let codecs = Codecs::from_str(input).unwrap();
+        assert_eq!(codecs, Codecs::Simp(SimpList::from_str(input).unwrap()));
         assert_eq!(&codecs.to_string(), input);
     }
 

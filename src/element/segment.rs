@@ -244,7 +244,7 @@ mod tests {
   <S d="5" r="15"/>
 </SegmentTimeline>"#;
 
-        assert!(&xml == se);
+        assert!(xml == se);
     }
 
     #[test]
