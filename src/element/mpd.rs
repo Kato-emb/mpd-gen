@@ -5,9 +5,13 @@ use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
-use crate::definition::*;
-use crate::element::*;
-use crate::types::*;
+use crate::definition::{MPD_NAMESPACE, MPD_SCHEMA_FILE, MPD_SCHEMA_INSTANCE, XML_DECLARATION};
+use crate::element::{
+    BaseURL, ContentProtection, CustomValidate, Descriptor, InitializationSet,
+    LeapSecondInformation, Metrics, MpdError, PatchLocation, ProgramInformation,
+    ServiceDescription, UIntVWithID,
+};
+use crate::types::{xs, ListOfProfiles, PresentationType, StringVector};
 
 use crate::element::period::Period;
 use crate::Result;
@@ -102,10 +106,10 @@ pub struct MPD {
 
 impl CustomValidate for MPDBuilder {
     fn validate(&self) -> Result<()> {
-        if !self
+        if self
             .profiles
             .as_ref()
-            .is_some_and(|profiles| !profiles.is_empty())
+            .is_none_or(|profiles| profiles.is_empty())
         {
             return Err(MpdError::ValidationError("MPD must be set profiles."));
         }
@@ -114,10 +118,9 @@ impl CustomValidate for MPDBuilder {
             .r#type
             .as_ref()
             .is_some_and(|typ| typ == &Some(PresentationType::Dynamic))
+            && (self.availability_start_time.is_none() || self.publish_time.is_none())
         {
-            if self.availability_start_time.is_none() || self.publish_time.is_none() {
-                return Err(MpdError::ValidationError("For @type='dynamic', @availabilityStartTime and @publishTime attribute shall be present"));
-            }
+            return Err(MpdError::ValidationError("For @type='dynamic', @availabilityStartTime and @publishTime attribute shall be present"));
         }
 
         Ok(())
@@ -125,12 +128,18 @@ impl CustomValidate for MPDBuilder {
 }
 
 impl MPD {
+    /// Creates a new `MPDBuilder` instance for building an MPD element.
+    /// # Errors
+    /// Returns an error if the builder fails to validate the MPD element.
     pub fn read<R: BufRead>(reader: &mut R) -> Result<MPD> {
         let mpd: MPD = quick_xml::de::from_reader(reader)?;
 
         Ok(mpd)
     }
 
+    /// Writes the MPD element to the provided writer in XML format.
+    /// # Errors
+    /// Returns an error if the serialization fails.
     pub fn write<W: Write>(&self, writer: &mut W) -> Result<()> {
         writer.write_all(XML_DECLARATION.as_bytes())?;
         writer.write_all("\n".as_bytes())?;
@@ -139,7 +148,7 @@ impl MPD {
         let mut ser = quick_xml::se::Serializer::new(&mut xml);
         ser.indent(' ', 2);
         self.serialize(ser)
-            .map_err(|err| MpdError::QuickXmlSerializeError(err))?;
+            .map_err(MpdError::QuickXmlSerializeError)?;
 
         writer.write_all(xml.as_bytes())?;
 
@@ -149,6 +158,8 @@ impl MPD {
 
 #[cfg(test)]
 mod tests {
+    use crate::Profile;
+
     use super::*;
 
     #[test]

@@ -2,8 +2,14 @@ use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
-use crate::element::*;
-use crate::types::*;
+use crate::element::{
+    BaseURL, ContentComponent, ContentPopularityRate, ContentProtection, Descriptor, EventStream,
+    GroupLavel, Label, MpdError, ProducerReferenceTime, RandomAccess, Resync, Switching,
+};
+use crate::types::{
+    xlink, xs, AudioSamplingRate, Codecs, ContentType, FrameRate, ListOfFourCC, ListOfProfiles,
+    Ratio, StreamAccessPoint, Tag, UIntVector, VideoScan,
+};
 
 use super::{
     repr::Representation,
@@ -148,7 +154,7 @@ mod tests {
 
     use crate::{
         element::{repr::RepresentationBuilder, segment::SegmentTemplateBuilder},
-        SegmentBuilder, SegmentTimelineBuilder,
+        SegmentBuilder, SegmentTimelineBuilder, StringNoWhitespace,
     };
 
     use super::*;

@@ -2,8 +2,8 @@ use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
-use crate::element::*;
-use crate::types::*;
+use crate::element::{CustomValidate, FailoverContent, MpdError, Result, SegmentUrl, Url};
+use crate::types::{xlink, xs, SingleByteRange};
 
 #[skip_serializing_none]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Builder)]
@@ -175,6 +175,7 @@ pub struct Segment {
     number: Option<u64>,
     #[serde(rename = "@d")]
     duration: u64,
+    /// Segment count in the timeline.
     #[serde(rename = "@k")]
     segment_count: Option<u64>,
     #[serde(rename = "@r")]
@@ -183,7 +184,7 @@ pub struct Segment {
 
 impl CustomValidate for SegmentBuilder {
     fn validate(&self) -> Result<()> {
-        if self.duration == None || self.duration == Some(0) {
+        if self.duration.is_none() || self.duration == Some(0) {
             Err(MpdError::ValidationError(
                 "Segment duration must be set longer than 0",
             ))
@@ -196,6 +197,8 @@ impl CustomValidate for SegmentBuilder {
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
+
+    use crate::UrlBuilder;
 
     use super::*;
 

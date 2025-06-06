@@ -8,10 +8,18 @@ use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
-use crate::types::*;
+use crate::types::{
+    xlink, xs, AudioSamplingRate, BandwidthMediaType, Codecs, ContentEncoding, ContentType,
+    FrameRate, ListOfFourCC, ListOfProfiles, PreselectionOrderType, ProducerReferenceTimeType,
+    QualityMediaType, RandomAccessType, Ratio, SingleByteRange, Source, StreamAccessPoint,
+    StringNoWhitespace, StringVector, SwitchingType, Tag, UIntVector, VideoScan,
+};
 use crate::{MpdError, Result};
 
 pub trait CustomValidate {
+    /// Validate the builder's fields before building the final object
+    /// # Errors
+    /// Returns an error if validation fails.
     fn validate(&self) -> Result<()>;
 }
 
@@ -207,7 +215,7 @@ impl CustomValidate for MetricsBuilder {
             Err(MpdError::ValidationError(
                 "Metrics must be set @metrics attribute",
             ))
-        } else if !self.reporting.as_ref().is_some_and(|rep| !rep.is_empty()) {
+        } else if self.reporting.as_ref().is_none_or(Vec::is_empty) {
             Err(MpdError::ValidationError(
                 "Metrics must be set Reporting element longer than 0",
             ))
@@ -279,7 +287,7 @@ impl CustomValidate for DescriptorBuilder {
 
 /// Table 33
 ///
-/// refとref_idはどちらか一方しか存在できない
+/// `refとref_idはどちらか一方しか存在できない`
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Builder)]
 #[builder(setter(into, strip_option), default, build_fn(error = "MpdError"))]
 pub struct ContentProtection {
@@ -478,12 +486,12 @@ impl CustomValidate for PopularityRateBuilder {
     fn validate(&self) -> Result<()> {
         match self.popularity_rate.as_ref() {
             Some(rate) => {
-                if !(1..=100).contains(rate) {
+                if (1..=100).contains(rate) {
+                    Ok(())
+                } else {
                     Err(MpdError::ValidationError(
                         "The value shall be in the range of 1 to 100.",
                     ))
-                } else {
-                    Ok(())
                 }
             }
             None => Err(MpdError::ValidationError(
@@ -515,11 +523,7 @@ impl CustomValidate for ContentPopularityRateBuilder {
             Err(MpdError::ValidationError(
                 "ContentPopularityRate must be set @source",
             ))
-        } else if !self
-            .popularity_rates
-            .as_ref()
-            .is_some_and(|rates| !rates.is_empty())
-        {
+        } else if self.popularity_rates.as_ref().is_none_or(Vec::is_empty) {
             Err(MpdError::ValidationError(
                 "ContentPopularityRate must be set PR longer than 0",
             ))
@@ -890,7 +894,7 @@ pub struct FailoverContent {
 
 impl CustomValidate for FailoverContentBuilder {
     fn validate(&self) -> Result<()> {
-        if !self.fcs_list.as_ref().is_some_and(|list| !list.is_empty()) {
+        if self.fcs_list.as_ref().is_none_or(Vec::is_empty) {
             Err(MpdError::ValidationError(
                 "FailoverContent must be set FCS longer than 0",
             ))

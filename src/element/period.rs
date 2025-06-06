@@ -2,8 +2,11 @@ use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
-use crate::element::*;
-use crate::types::*;
+use crate::element::{
+    BaseURL, ContentProtection, Descriptor, EventStream, GroupLavel, MpdError, Preselection,
+    ServiceDescription, Subset,
+};
+use crate::types::{xlink, xs};
 
 use super::{
     adapt::AdaptationSet,

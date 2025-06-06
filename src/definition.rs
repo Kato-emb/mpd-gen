@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use strum_macros::{Display, EnumString};
 
-use crate::{define_regex, entity::*, error::MpdError, Result};
+use crate::{define_regex, entity::PATTERN_PROFILE, error::MpdError, Result};
 
 pub const XML_DECLARATION: &str = r#"<?xml version="1.0" encoding="UTF-8"?>"#;
 
