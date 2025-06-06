@@ -1,6 +1,6 @@
 use std::{fmt, ops::Deref, str::FromStr};
 
-use chrono::{Local, NaiveDateTime, Utc};
+use chrono::{NaiveDateTime, Utc};
 use num::{integer::gcd, rational, BigInt};
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
@@ -81,7 +81,7 @@ pub mod xlink {
 
 pub mod xs {
     use super::{
-        fmt, BigInt, Deref, DeserializeFromStr, FromStr, Local, MpdError, NaiveDateTime, Result,
+        fmt, BigInt, Deref, DeserializeFromStr, FromStr, MpdError, NaiveDateTime, Result,
         SerializeDisplay, Utc, PATTERN_COLLAPSE_SPACES, PATTERN_INTEGER, PATTERN_LANG,
         PATTERN_NAME,
     };
@@ -445,10 +445,12 @@ pub mod xs {
                 if time_part.contains('Z') || time_part.contains('+') || time_part.contains('-') {
                     chrono::DateTime::parse_from_rfc3339(s)?.to_utc()
                 } else {
-                    let datetime = NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.f")?
-                        .and_local_timezone(Local)
-                        .unwrap();
-                    datetime.to_utc()
+                    let naive = NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.f")?;
+                    chrono::DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc)
+                    // let datetime = NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.f")?
+                    //     .and_local_timezone(Local)
+                    //     .unwrap();
+                    // datetime.to_utc()
                 };
 
             Ok(Self { value })
@@ -842,7 +844,7 @@ pub mod xs {
             assert_eq!(&datetime.to_string(), "2004-04-12T18:20:00Z");
 
             let datetime = DateTime::from_str("2004-04-12T13:20:15.5").unwrap();
-            assert_eq!(&datetime.to_string(), "2004-04-12T04:20:15.500Z");
+            assert_eq!(&datetime.to_string(), "2004-04-12T13:20:15.500Z");
         }
 
         #[test]
